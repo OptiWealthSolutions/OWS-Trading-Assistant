@@ -1,7 +1,3 @@
-Voici un exemple de README.md professionnel et complet pour ton projet OptiWealth Solutions – Trading Assistant. Il est prêt à être déposé dans ton dépôt GitHub (OWS_Trading_Assistant/README.md) :
-
-⸻
-
 # 📈 OptiWealth Solutions – Trading Assistant
 
 > Assistant de trading intelligent orienté Forex, combinant analyse technique, gestion de risque adaptative et modules d’aide à la décision, conçu pour les traders swing et intraday.
