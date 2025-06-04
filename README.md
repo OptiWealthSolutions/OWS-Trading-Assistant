@@ -34,53 +34,39 @@ Ce projet vise à fournir un assistant modulaire pour :
 
 ---
 
-## 📁 Structure du projet
-
-OWS_Trading_Assistant/
-├── Quant/
-│ ├── risk_management.py
-│ ├── volatility.py
-│ ├── indicators.py
-├── Source/
-│ ├── settings.py
-│ └── config/
-├── Reports/
-│ └── vol pdf reports/
-├── requirements.txt
-├── setup.sh
-└── README.md
-
----
-
 ## 🚀 Installation
 
-```bash
+bash
+
 # Clone le repo
-'''
+
+```
 git clone https://github.com/leolombardini/OWS_Trading_Assistant.git
 cd OWS_Trading_Assistant
-'''
+```
 
 # Lancer le setup (Python 3.10 requis)
-'''
+
+```
 chmod +x setup.sh
 ./setup.sh
-'''
+```
 
 ⸻
 
 📊 À venir
-	•	Ajout d’un module de backtesting vectorbt
-	•	Intégration avec des API broker (MetaTrader, OANDA)
-	•	Tableau de bord interactif en Streamlit ou Dash
-	•	Gestion multi-devises optimisée
+• Ajout d’un module de backtesting vectorbt
+• Intégration avec des API broker (MetaTrader, OANDA)
+• Tableau de bord interactif en Streamlit ou Dash
+• Gestion multi-devises optimisée
 
 ⸻
 
 🧑‍💻 Dépendances techniques
 
+```
 Fichier requirements.txt :
-‘‘‘
+
 yfinance
 pandas
 numpy
@@ -88,7 +74,7 @@ matplotlib
 scipy
 vectorbt
 pandas-ta
-‘‘‘
+```
 
 ⸻
 
@@ -97,4 +83,3 @@ pandas-ta
 Léo Lombardini
 Trading & Quantitative Strategy – Étudiant en economie et finance
 📧 optiwealth.solutions@gmail.com
-```
