@@ -1,0 +1,7 @@
+vectorbt
+yfinance
+numpy
+pandas
+scipy
+matplotlib
+statsmodels

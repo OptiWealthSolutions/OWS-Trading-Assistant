@@ -1,0 +1,17 @@
+# Ignorer les fichiers temporaires Python
+*.pyc
+__pycache__/
+
+# Environnement virtuel
+.venv/
+env/
+venv/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
