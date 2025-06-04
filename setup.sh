@@ -1,20 +1,35 @@
 #!/bin/bash
 
-echo "🔧 Création de l'environnement Python .venv..."
+# ------------ Vérification de Python 3.10 ------------
+if ! command -v python3.10 &> /dev/null
+then
+    echo "❌ Python 3.10 non trouvé. Installe-le avec brew : brew install python@3.10"
+    exit 1
+fi
 
-# Crée un environnement virtuel
-python3 -m venv .venv
+# ------------ Création de l'environnement virtuel ------------
+echo "📦 Création de l'environnement virtuel .venv..."
+python3.10 -m venv .venv
 
-# Active l'environnement
+# ------------ Activation (uniquement pour Unix/macOS) ------------
+echo "⚙️ Activation de l'environnement..."
 source .venv/bin/activate
 
-# Upgrade pip
-echo "⬆️  Mise à jour de pip..."
-pip install --upgrade pip
+# ------------ Installation des dépendances ------------
+if [ -f requirements.txt ]; then
+    echo "📚 Installation depuis requirements.txt..."
+    pip install --upgrade pip
+    pip install -r requirements.txt
+else
+    echo "❌ Aucun fichier requirements.txt trouvé."
+    deactivate
+    exit 1
+fi
 
-# Installe les dépendances
-echo "📦 Installation des dépendances..."
-pip install -r requirements.txt
+# ------------ Ajout au .gitignore ------------
+if ! grep -q "^.venv/$" .gitignore 2>/dev/null; then
+    echo ".venv/" >> .gitignore
+    echo "✅ .venv/ ajouté au .gitignore"
+fi
 
-echo "✅ Environnement prêt. Activez-le avec : source .venv/bin/activate"
-
+echo "✅ Environnement prêt. Active-le avec : source .venv/bin/activate"
