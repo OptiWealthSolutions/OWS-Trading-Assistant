@@ -51,18 +51,20 @@ chmod +x setup.sh
 ```
 
 ⸻
-‘‘‘
+
 📊 À venir
-• Ajout d’un module de backtesting vectorbt
-• Intégration avec des API broker (MetaTrader, OANDA)
-• Tableau de bord interactif en Streamlit ou Dash
-• Gestion multi-devises optimisée
-‘‘‘
+
+- Ajout d’un module de backtesting vectorbt
+- Intégration avec des API broker (MetaTrader, OANDA)
+- Tableau de bord interactif en Streamlit ou Dash
+- Ajout des sentiments de marché et des positions retails
+- Gestion multi-devises optimisée
+
 ⸻
 
 #### 🧑‍💻 Dépendances techniques
 
-Fichier requirements.txt :
+Fichier `requirement.txt` :
 
 ```
 yfinance
