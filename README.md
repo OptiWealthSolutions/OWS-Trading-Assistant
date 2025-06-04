@@ -36,16 +36,14 @@ Ce projet vise à fournir un assistant modulaire pour :
 
 ## 🚀 Installation
 
-bash
-
-# Clone le repo
+### Clone le repo
 
 ```
 git clone https://github.com/leolombardini/OWS_Trading_Assistant.git
 cd OWS_Trading_Assistant
 ```
 
-# Lancer le setup (Python 3.10 requis)
+### Lancer le setup (Python 3.10 requis)
 
 ```
 chmod +x setup.sh
@@ -53,27 +51,29 @@ chmod +x setup.sh
 ```
 
 ⸻
-
+‘‘‘
 📊 À venir
 • Ajout d’un module de backtesting vectorbt
 • Intégration avec des API broker (MetaTrader, OANDA)
 • Tableau de bord interactif en Streamlit ou Dash
 • Gestion multi-devises optimisée
-
+‘‘‘
 ⸻
 
-🧑‍💻 Dépendances techniques
+#### 🧑‍💻 Dépendances techniques
 
-```
 Fichier requirements.txt :
 
+```
 yfinance
 pandas
 numpy
 matplotlib
 scipy
 vectorbt
-pandas-ta
+pandas_ta
+statsmodels
+
 ```
 
 ⸻
