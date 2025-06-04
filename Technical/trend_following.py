@@ -4,18 +4,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import vectorbt as vbt
 
-
-
 # --------------- Fonction Trend Following ----------------
 def trend_following(ticker, slow_sma ,fast_sma,):
-    df = vbt.YFData(ticker, period='6mo',interval='4h').get()
-    
+    data = vbt.YFData.pull("BTC-USD", start="2020", end="2023")
+    fig = data.plot(plot_volume=False)
+    pivot_info = data.run("pivotinfo", up_th=1.0, down_th=0.5)
+    pivot_info.plot(fig=fig, conf_value_trace_kwargs=dict(visible=False))
+    fig.show()
+    df = vbt.YFData.download(ticker, period='6mo', interval='4h').get()
     close = df['Close']
     high = df['High']
     low = df['Low']
 
-    sma_fast = close.vbt.rolling(window=fast_sma).mean()
-    sma_slow = close.vbt.rolling(window=slow_sma).mean()
+    sma_fast = close.rolling(window=fast_sma).mean()
+    sma_slow = close.rolling(window=slow_sma).mean()
 
     adx = vbt.indicators.ADX(high, low, close, window=14).adx
 
