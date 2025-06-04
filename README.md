@@ -39,7 +39,7 @@ Ce projet vise à fournir un assistant modulaire pour :
 ### Clone le repo
 
 ```
-git clone https://github.com/optiwealthsolutions/OWS_Trading_Assistant.git
+git clone https://github.com/OptiWealthSolutions/OWS_Trading_Assistant.git
 cd OWS_Trading_Assistant
 ```
 
