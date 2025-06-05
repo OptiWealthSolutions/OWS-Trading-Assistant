@@ -47,9 +47,9 @@ def pip_value(pair,lot_size=1,price=None,account_currency="EUR"):
     pip = 0.0001 if "JPY" not in pair else 0.01
 
     if account_currency == quote:
-        return lot_size * pip  # Standard, ex: EURUSD/USD
+        return lot_size * pip 
     elif account_currency == base:
-        return lot_size * pip / price  # Inversé, ex: USDCHF/USD
+        return lot_size * pip / price 
     else:
 
         conv_pair = f"{quote}{account_currency}=X"
@@ -70,8 +70,6 @@ def position_sizing(pair, entry_price, direction, capital, account_currency="EUR
     pip_val = pip_value(pair, lot_size=1, price=entry_price, account_currency=account_currency)
     lots = risk_amount / (sl_pips * pip_val)
     print(f"Taille de position calculée : {lots:.2f} lots (risk: {risk_amount}€, SL: {sl_pips:.2f} pips, pip_val: {pip_val})")
-    if lots > 100:
-        print("⚠️ Avertissement : taille de position anormalement élevée, vérifiez les paramètres.")
     return round(lots, 2)
 
 print(position_sizing("EURUSD",1.3,"SELL",1000))
