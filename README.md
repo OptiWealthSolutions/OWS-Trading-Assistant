@@ -59,6 +59,8 @@ chmod +x setup.sh
 - Tableau de bord interactif en Streamlit ou Dash
 - Ajout des sentiments de marché et des positions retails
 - Gestion multi-devises optimisée
+- Mise en place d'un dashboard qui reuni toutes les informations nécéssaires :
+  - pouvoir choisir les paires et avoir les ratios, resultats, et informations complémentaires correspondantes --> inspiration du prime market terminal
 
 ⸻
 
