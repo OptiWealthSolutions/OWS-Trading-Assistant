@@ -35,10 +35,6 @@ def sl_sizing (atr,k, entry_price,direction):
     else : 
         return "INVALID DIRECTION"
 
-entry_price_test = 1.1303
-sl = sl_sizing(atr,k,entry_price_test,"")
-
-
 # --------------- Fonction pip value for differents pairs ----------------
 # def pip_value(pair,lot_size=1,price=None,account_currency="EUR"):
 #     base, quote = pair[:3], pair[4:]

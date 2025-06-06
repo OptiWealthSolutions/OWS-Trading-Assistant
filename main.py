@@ -4,6 +4,11 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from settings import *
 from utils import *
 from settings import tickers_default
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+
+# --------------- Main call fonction----------------
+
 def main_call():
     print("=== Commodities Correlation ===")
     correlations = plot_currency_vs_commodities("EURUSD=X")
@@ -22,6 +27,6 @@ def main_call():
 
     print("\n=== Seasonality ===")
     seasonality(tickers_default)
-
-if __name__ == "__main__":
-    main_call()
+    
+    return "done"
+main_call()
