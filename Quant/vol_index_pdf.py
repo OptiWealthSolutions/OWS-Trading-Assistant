@@ -14,15 +14,16 @@ os.makedirs(output_dir, exist_ok=True)
 ticker = "EURUSD=X"
 output_path = os.path.join(output_dir, f"forex_volatility_report_{ticker}.pdf")
 
-with PdfPages(output_path) as pdf:
+def get_vol_index(ticker):
+    with PdfPages(output_path) as pdf:
     # Téléchargement des données
-    fx_vol_data_brut = yf.download(ticker, period="6mo", interval="4h")
-    fx_df_vol = pd.DataFrame(fx_vol_data_brut)
+        fx_vol_data_brut = yf.download(ticker, period="6mo", interval="4h")
+        fx_df_vol = pd.DataFrame(fx_vol_data_brut)
 
-    # Calcul des rendements log et de la volatilité
-    fx_df_vol['Log Returns'] = np.log(fx_df_vol['Close'] / fx_df_vol['Close'].shift(1))
-    fx_df_vol['Volatility_20D'] = fx_df_vol['Log Returns'].rolling(window=20).std(ddof=0) * 100
-    fx_df_vol.dropna(inplace=True)
+        # Calcul des rendements log et de la volatilité
+        fx_df_vol['Log Returns'] = np.log(fx_df_vol['Close'] / fx_df_vol['Close'].shift(1))
+        fx_df_vol['Volatility_20D'] = fx_df_vol['Log Returns'].rolling(window=20).std(ddof=0) * 100
+        fx_df_vol.dropna(inplace=True)
 
 
     
@@ -54,3 +55,5 @@ with PdfPages(output_path) as pdf:
     fig2.tight_layout()
     pdf.savefig(fig2)
     plt.close(fig2)
+    
+get_vol_index("EURUSD=X")

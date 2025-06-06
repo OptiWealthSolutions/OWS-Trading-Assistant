@@ -24,6 +24,7 @@ stocks_tickers = []
 
 tickers_default = "EURUSD=X"
 
+
 # mapping devise/commodité
 currency_commodity_map = {
     "AUD": ["GC=F", "HG=F"],  # Or, Cuivre
