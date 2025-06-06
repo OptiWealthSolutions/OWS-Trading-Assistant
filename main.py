@@ -10,10 +10,10 @@ def main_call():
     
 
     print("\n=== Risk Management ===")
-    gestion_risque_adaptative(1000,tickers_default)
+    print(gestion_risque_adaptative(1000,tickers_default))
 
     print("\n=== Stop Loss Sizing ===")
-    atr_index(tickers_default)
+    print(atr_index(tickers_default))
 
     print("\n=== Volatility Index PDF ===")
     get_vol_index()

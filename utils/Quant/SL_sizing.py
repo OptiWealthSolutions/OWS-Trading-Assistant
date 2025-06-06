@@ -5,14 +5,14 @@ import numpy as np
 
 
 # --------------- Fonction average true range index ----------------
-def atr_index(ticker, window=14, duration="6mo"):
-    df = yf.download(ticker, period=duration, interval='4H')
+def atr_index(ticker):
+    df = yf.download(ticker, period="6mo", interval='4H')
     
     df['H-L'] = df['High'] - df['Low']
     df['H-PC'] = abs(df['High'] - df['Close'].shift(1))
     df['L-PC'] = abs(df['Low'] - df['Close'].shift(1))
     df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
-    df['ATR'] = df['TR'].rolling(window=window).mean()
+    df['ATR'] = df['TR'].rolling(window=14).mean()
     df.dropna(inplace=True)  # Supprime les NaN après calcul ATR
     # Calcul de k
     distance = abs(df['Close'].shift(1) - df['Low'])

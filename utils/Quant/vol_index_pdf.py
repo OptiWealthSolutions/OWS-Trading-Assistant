@@ -58,4 +58,4 @@ def get_vol_index(ticker):
     
     return plt.show()
     
-get_vol_index("EURUSD=X")
+get_vol_index()
