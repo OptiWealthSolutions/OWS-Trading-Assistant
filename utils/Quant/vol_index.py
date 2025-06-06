@@ -33,5 +33,7 @@ def get_vol_index(ticker):
     ax.legend()
     ax.grid(True)
     fig.tight_layout()
-    plt.show()
-    
+
+    return plt.show()
+
+get_vol_index('EURUSD=X')

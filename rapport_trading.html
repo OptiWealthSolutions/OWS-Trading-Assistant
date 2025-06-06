@@ -1,0 +1,40 @@
+
+    <html>
+    <head>
+        <title>Rapport Trading</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            h2 { color: #2F4F4F; }
+            table { border-collapse: collapse; width: 80%; margin-bottom: 40px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+            th { background-color: #f2f2f2; }
+            img { max-width: 100%; height: auto; margin-bottom: 40px; }
+        </style>
+    </head>
+    <body>
+    <h2>Commodities Correlation</h2><p>(None, -0.29666358361795003)</p><img src="commodities.png" alt="Commodities Correlation"><h2>Volatility Index</h2><img src="vol_index.png" alt="Volatility Index"><h2>Seasonality</h2><img src="seasonality.png" alt="Seasonality"><h2>Pairs Trading</h2><h3>Analyse USDCHF=X / EURUSD=X</h3><pre>Analyse de la paire USDCHF=X / EURUSD=X sur 1y:
+- Co-intégration détectée : Non (p-value=0.0523)
+- R² de la régression : 0.8600
+- Coefficients : alpha (intercept) = 1.7473, beta = -0.8078
+- Niveau actuel du z-score : -0.44 (distance à la moyenne du spread)
+- Le spread est proche de sa moyenne (pas de signal fort).
+</pre><img src="spread_USDCHF=X_EURUSD=X.png" alt="Spread Graph USDCHF=X-EURUSD=X"><h2>Technical Signals</h2><p>SMA Crossing and ADX calculated (details non affichés)</p><h2>Stop Loss Sizing</h2><p>ATR: 0.002696, K: 1.7</p><p>Stop Loss Sizing: None</p><h2>Risk Management</h2><table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Vol %</th>
+      <th>Std %</th>
+      <th>Risk €</th>
+      <th>Risk %</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>19.55</td>
+      <td>0.26</td>
+      <td>16.36</td>
+      <td>1.8</td>
+    </tr>
+  </tbody>
+</table></body></html>

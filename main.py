@@ -24,8 +24,9 @@ from utils.Macro.commodities_graph import plot_currency_vs_commodities
 
 
 # --------------- Main call fonction----------------
+
+
 def main_call(ticker):
-    # Initialisation du contenu HTML
     html_content = """
     <html>
     <head>
@@ -45,17 +46,24 @@ def main_call(ticker):
     # === Commodities Correlation ===
     html_content += "<h2>Commodities Correlation</h2>"
     correlation = plot_currency_vs_commodities(tickers_default)
+    plt.savefig('commodities.png')
+    plt.close()
     html_content += f"<p>{correlation}</p>"
+    html_content += '<img src="commodities.png" alt="Commodities Correlation">'
 
     # === Volatility Index ===
     html_content += "<h2>Volatility Index</h2>"
     get_vol_index(tickers_default)
-    html_content += "<p>(Indicateurs de volatilité calculés)</p>"
+    plt.savefig('vol_index.png')
+    plt.close()
+    html_content += '<img src="vol_index.png" alt="Volatility Index">'
 
     # === Seasonality ===
     html_content += "<h2>Seasonality</h2>"
     seasonality(tickers_default)
-    html_content += "<p>(Saisonnalité analysée)</p>"
+    plt.savefig('seasonality.png')
+    plt.close()
+    html_content += '<img src="seasonality.png" alt="Seasonality">'
 
     # === Pairs Trading ===
     html_content += "<h2>Pairs Trading</h2>"
@@ -68,20 +76,13 @@ def main_call(ticker):
     selected_pairs = [pair for pair in forex_pairs if ticker in pair]
     for pair in selected_pairs:
         other = pair[1] if pair[0] == ticker else pair[0]
-        result = pairs_trading_summary(ticker, other)
+        result = pairs_trading_summary(ticker, other, save_path=f"spread_{ticker}_{other}.png")
         html_content += f"<h3>Analyse {ticker} / {other}</h3>"
-        html_content += f"<pre>{result['interpretation']}</pre>"
-        # Save spread graph image generated inside pairs_trading_summary
-        # Here you can adjust to save plots with unique names per pair if needed
-        # For example:
-        # filename = f"spread_{ticker}_{other}.png"
-        # plt.savefig(filename)
-        # html_content += f'<img src="{filename}" alt="Spread Graph">'
-        # But since pairs_trading_summary shows plot, consider modifying it to save plot instead
+        html_content += f"<pre>{result}</pre>"
+        html_content += f'<img src="spread_{ticker}_{other}.png" alt="Spread Graph {ticker}-{other}">'
 
     # === Technical Signals ===
     html_content += "<h2>Technical Signals</h2>"
-    # You can add summaries of sma_crossing and calculate_adx here
     html_content += "<p>SMA Crossing and ADX calculated (details non affichés)</p>"
 
     # === Stop Loss Sizing ===
@@ -96,38 +97,16 @@ def main_call(ticker):
     df_risk = gestion_risque_adaptative(current_capital, tickers_default)
     html_content += df_risk.to_html()
 
-    # === Spread Graph (example for first pair) ===
-    # Generate spread plot image and embed
-    if selected_pairs:
-        first_pair = selected_pairs[0]
-        ticker1 = ticker
-        ticker2 = first_pair[1] if first_pair[0] == ticker else first_pair[0]
-        df = data_loader(ticker1, ticker2, "1y")
-        spread = df[f"{ticker1}_Close"] - df[f"{ticker2}_Close"]  # simple spread example
-        plt.figure(figsize=(12, 6))
-        plt.plot(spread.tail(90))
-        plt.axhline(spread.mean(), color='black', linestyle='--', label='Moyenne du spread')
-        plt.axhline(spread.std(), color='red', linestyle='--', label='STD du spread')
-        plt.title(f'Spread entre {ticker1} et {ticker2} (90 derniers jours)')
-        plt.legend()
-        plt.grid()
-        image_path = "spread_example.png"
-        plt.savefig(image_path)
-        plt.close()
-        html_content += f'<h2>Spread Graph for {ticker1} / {ticker2}</h2>'
-        html_content += f'<img src="{image_path}" alt="Spread Graph">'
-
     html_content += "</body></html>"
 
-    # Écriture du fichier HTML
     report_file = "rapport_trading.html"
     with open(report_file, "w") as f:
         f.write(html_content)
 
     print(f"Rapport HTML généré : {os.path.abspath(report_file)}")
 
-    return df_risk  # Optionnel, si tu veux récupérer le DataFrame
+    return df_risk
 
 
 # Exemple d’appel dans ton script principal
-main_call("EURUSD=X")
+main_call(tickers_default)

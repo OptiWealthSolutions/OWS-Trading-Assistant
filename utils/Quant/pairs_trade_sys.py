@@ -36,7 +36,7 @@ def engle_granger_test(y_serie: pd.Series, x_serie: pd.Series):
     params = model.params
     return residuals, p_value, r_squared, params
 
-def pairs_trading_summary(ticker1: str, ticker2: str, duration: str = "1y"):
+def pairs_trading_summary(ticker1: str, ticker2: str, duration: str = "1y", save_path=None):
     df = data_loader(ticker1, ticker2, duration)
     spread, p_value, r_squared, params = engle_granger_test(df[f"{ticker1}_Close"], df[f"{ticker2}_Close"])
     
@@ -55,17 +55,21 @@ def pairs_trading_summary(ticker1: str, ticker2: str, duration: str = "1y"):
     else:
         interpretation += "- Le spread est proche de sa moyenne (pas de signal fort).\n"
     
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(12,6))
     plt.plot(spread.tail(90))
     plt.axhline(spread.mean(), color='black', linestyle='--', label='Moyenne du spread')
     plt.axhline(spread.std(), color='red', linestyle='--', label='STD du spread')
     plt.title(f'Spread entre {ticker1} et {ticker2} (90 derniers jours)')
     plt.legend()
     plt.grid()
-    
-    return {'interpretation' : interpretation, 
-            'representation graphique du spread' : plt.show()}
 
+    if save_path:
+        plt.savefig(save_path)
+        plt.close()
+    else:
+        plt.show()
+
+    return interpretation
 
 if __name__ == "__main__":
     ticker_default = "EURUSD=X"
