@@ -6,7 +6,7 @@ import vectorbt as vbt
 
 # --------------- Fonction Trend Following ----------------
 def trend_following(ticker, slow_sma ,fast_sma,):
-    data = vbt.YFData.pull("BTC-USD", start="2020", end="2023")
+    data = vbt.YFData.get("BTC-USD", start="2020", end="2023")
     fig = data.plot(plot_volume=False)
     pivot_info = data.run("pivotinfo", up_th=1.0, down_th=0.5)
     pivot_info.plot(fig=fig, conf_value_trace_kwargs=dict(visible=False))

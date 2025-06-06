@@ -64,6 +64,31 @@ chmod +x setup.sh
 
 ⸻
 
+### Organisation du rapport :
+
+Titre : Rapport de Trading - [Date]
+
+1. Résumé exécutif
+   → Contexte de marché, niveau de volatilité, décision globale
+
+2. Analyse technique
+   → Graphiques, indicateurs clés, signaux détectés
+
+3. Analyse macroéconomique
+   → Données économiques pertinentes, COT, sentiment
+
+4. Analyse de volatilité
+   → VIX, ATR, écart-type, interprétation
+
+5. Analyse de risque
+   → VaR, drawdowns, ratios de performance
+
+6. Allocation & position sizing
+   → Taille suggérée, actifs recommandés
+
+7. Recommandation finale
+   → BUY / SELL / HOLD + justification
+
 #### 🧑‍💻 Dépendances techniques
 
 Fichier `requirement.txt` :
