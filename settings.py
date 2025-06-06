@@ -22,7 +22,7 @@ fx_tickers = [
 
 stocks_tickers = []
 
-tickers_default = "USDJPY=X"
+tickers_default = "USDCHF=X"
 entry_price_ticker_default = 144
 
 # mapping devise/commodité

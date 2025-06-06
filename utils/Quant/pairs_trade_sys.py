@@ -32,15 +32,19 @@ def engle_granger_test(y_serie: pd.Series, x_serie: pd.Series):
     model = sm.OLS(y_serie_clean, x).fit()
     residuals = model.resid
     p_value = test_adf(residuals)
-    return residuals, p_value
+    r_squared = model.rsquared
+    params = model.params
+    return residuals, p_value, r_squared, params
 
 def pairs_trading_summary(ticker1: str, ticker2: str, duration: str = "1y"):
     df = data_loader(ticker1, ticker2, duration)
-    spread, p_value = engle_granger_test(df[f"{ticker1}_Close"], df[f"{ticker2}_Close"])
+    spread, p_value, r_squared, params = engle_granger_test(df[f"{ticker1}_Close"], df[f"{ticker2}_Close"])
     
     cointegration = p_value < 0.05
     interpretation = f"Analyse de la paire {ticker1} / {ticker2} sur {duration}:\n"
     interpretation += f"- Co-intégration détectée : {'Oui' if cointegration else 'Non'} (p-value={p_value:.4f})\n"
+    interpretation += f"- R² de la régression : {r_squared:.4f}\n"
+    interpretation += f"- Coefficients : alpha (intercept) = {params[0]:.4f}, beta = {params[1]:.4f}\n"
     
     zscore = (spread - spread.mean()) / spread.std()
     zscore_final = zscore.iloc[-1]
