@@ -24,6 +24,18 @@ stocks_tickers = []
 
 tickers_default = "EURUSD=X"
 
+# mapping devise/commodité
+currency_commodity_map = {
+    "AUD": ["GC=F", "HG=F"],  # Or, Cuivre
+    "CAD": ["CL=F", "NG=F"],  # Pétrole, gaz
+    "NZD": ["ZC=F", "ZW=F"],  # Produits agricoles
+    "NOK": ["BZ=F"],          # Pétrole Brent
+    "USD": ["GC=F", "CL=F"],  # Indirectement corrélé à beaucoup
+    "BRL": ["SB=F", "KC=F"],  # Sucre, café
+    "MXN": ["CL=F", "ZS=F"],  # Pétrole, soja
+    "ZAR": ["GC=F", "PL=F"],  # Or, platine
+}
+
 
 # --------------- Testing values ----------------
 capital = 1000
