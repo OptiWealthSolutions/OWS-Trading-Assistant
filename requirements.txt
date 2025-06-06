@@ -5,3 +5,9 @@ pandas
 scipy
 matplotlib
 statsmodels
+seaborn
+sklearn
+scipy.stats
+scipy.signal
+scipy.optimize
+linalgo

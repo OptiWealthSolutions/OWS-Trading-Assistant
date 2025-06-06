@@ -16,11 +16,12 @@ currency_commodity_map = {
 
 
 def plot_currency_vs_commodities(ticker, period="6mo", interval="1h"):
-    base = ticker[:3]  # Example: "AUD" from "AUDUSD"
-    commodities = currency_commodity_map.get(base.upper(), [])
-    
+    base1 = ticker[:3].upper()
+    base2 = ticker[3:6].upper()
+    commodities = list(set(currency_commodity_map.get(base1, []) + currency_commodity_map.get(base2, [])))
+
     if not commodities:
-        print(f"No known commodity for {base}")
+        print(f"No known commodity for {base1} or {base2}")
         return
 
     # Download data
@@ -32,9 +33,12 @@ def plot_currency_vs_commodities(ticker, period="6mo", interval="1h"):
         commo_data = yf.download(commo, period=period, interval=interval)
         commo_data = commo_data['Close']
         data = data.join(commo_data, how="inner")
-    
+
     data.dropna(inplace=True)
-    
+
+    # Prepare to store correlations
+    correlations = {}
+
     # Display
     for commo in commodities:
         fig, ax1 = plt.subplots(figsize=(10, 5))
@@ -49,6 +53,14 @@ def plot_currency_vs_commodities(ticker, period="6mo", interval="1h"):
         plt.legend()
         plt.grid()
         plt.show()
-        
-        
-plot_currency_vs_commodities("AUDUSD=X")
+
+        # Compute and print correlation
+        forex_returns = data[ticker].pct_change()
+        commo_returns = data[commo].pct_change()
+        correlation = forex_returns.corr(commo_returns)
+        correlations[commo] = correlation
+       
+
+    return  print(f"Correlation between {ticker} and {commo}: {correlation:.4f}")
+
+plot_currency_vs_commodities("EURUSD=X")
