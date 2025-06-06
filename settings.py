@@ -38,6 +38,13 @@ currency_commodity_map = {
 }
 
 
+forex_pairs_correlated = [
+    ("EURUSD=X", "GBPUSD=X"),
+    ("AUDUSD=X", "NZDUSD=X"),
+    ("EURUSD=X", "USDCHF=X"),
+    ("USDCAD=X", "CL=F"),  # USD/CAD et WTI
+]
+
 # --------------- Testing values ----------------
 current_capital = 909
 max_risk = 0.02

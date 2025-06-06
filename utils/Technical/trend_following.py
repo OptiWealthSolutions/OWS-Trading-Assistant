@@ -40,9 +40,6 @@ def calculate_adx(ticker, period=14):
     else:
         interpretation = "Tendance forte"
 
-    return last_adx, interpretation
+    return print(last_adx, interpretation)
 
 # Exemple d'appel
-ticker = "EURUSD=X"
-adx_value, interpretation = calculate_adx(ticker)
-print(f"ADX pour {ticker}: {adx_value:.2f} — {interpretation}")
