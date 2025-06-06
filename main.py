@@ -12,6 +12,7 @@ from utils.Quant.vol_index import get_vol_index
 # Macro
 from utils.Technical.seasonality import seasonality
 from utils.Technical.sma_crossing import sma_crossing
+from utils.Technical.trend_following import calculate_adx
 # Technical (corrige le nom du fichier ici si nécessaire !)
 from utils.Macro.commodities_graph import plot_currency_vs_commodities
 # PDF generator (si c’est dans main.py tu n’as pas besoin de l’importer)
@@ -30,13 +31,16 @@ def main_call():
     print("\n=== Seasonality ===")
     seasonality(tickers_default)
     
+
+    print("\n=== Technics Signals ===")
+    sma_crossing(tickers_default)
+    calculate_adx(tickers_default)
+    
     print("\n=== Stop Loss Sizing ===")
     print(atr_index(tickers_default))
     atr,k = atr_index(tickers_default)
-    
-    print("\n=== Technics Signals ===")
-    sma_crossing(tickers_default)
     print(sl_sizing(atr,k,entry_price_ticker_default,"SELL"))
+    
     print("\n=== Risk Management ===")
     df = gestion_risque_adaptative(current_capital,tickers_default)
     return df

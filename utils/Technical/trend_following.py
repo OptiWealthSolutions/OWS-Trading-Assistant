@@ -1,48 +1,48 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import vectorbt as vbt
 
-# --------------- Fonction Trend Following ----------------
-def trend_following(ticker, slow_sma ,fast_sma,):
-    data = vbt.YFData.get("BTC-USD", start="2020", end="2023")
-    fig = data.plot(plot_volume=False)
-    pivot_info = data.run("pivotinfo", up_th=1.0, down_th=0.5)
-    pivot_info.plot(fig=fig, conf_value_trace_kwargs=dict(visible=False))
-    fig.show()
-    df = vbt.YFData.download(ticker, period='6mo', interval='4h').get()
-    close = df['Close']
-    high = df['High']
-    low = df['Low']
+def calculate_adx(ticker, period=14):
+    # Télécharge les données boursières
+    df = yf.download(ticker, period='5d', interval='1h')
 
-    sma_fast = close.rolling(window=fast_sma).mean()
-    sma_slow = close.rolling(window=slow_sma).mean()
+    # Calcul des True Range (TR), +DM et -DM
+    df['High'] = df['High'].shift(1)
+    df['Low'] = df['Low'].shift(1)
+    df['Close'] = df['Close'].shift(1)
 
-    adx = vbt.indicators.ADX(high, low, close, window=14).adx
+    df['TR'] = np.maximum(df['High'] - df['Low'], np.maximum(abs(df['High'] - df['Close']), abs(df['Low'] - df['Close'])))
+    df['+DM'] = df['High'] - df['High'].shift(1)
+    df['-DM'] = df['Low'].shift(1) - df['Low']
 
-    rsi = vbt.indicators.RSI.run(close).rsi
-    cross_signal = "WAIT"
-    if sma_fast.vbt.crossed_above(sma_slow).iloc[-1]:
-        last_cross = "BUY"
-    elif sma_fast.vbt.crossed_below(sma_slow).iloc[-1]:
-        last_cross = "SELL"
-        
-    adx_last_value = adx.iloc[-1]
-    if adx_last_value >= 25:
-        confiance = "forte"
-    elif adx_last_value >= 15:
-        confiance = "modérée"
+    # Conditions pour filtrer les +DM et -DM
+    df['+DM'] = np.where(df['+DM'] > 0, df['+DM'], 0)
+    df['-DM'] = np.where(df['-DM'] > 0, df['-DM'], 0)
+
+    # Calcul du smoothed +DM, -DM et TR sur la période donnée
+    df['+DM_smooth'] = df['+DM'].rolling(window=period).sum()
+    df['-DM_smooth'] = df['-DM'].rolling(window=period).sum()
+    df['TR_smooth'] = df['TR'].rolling(window=period).sum()
+
+    # Calcul de l'ADX
+    df['+DI'] = (df['+DM_smooth'] / df['TR_smooth']) * 100
+    df['-DI'] = (df['-DM_smooth'] / df['TR_smooth']) * 100
+    df['DX'] = (abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI'])) * 100
+    df['ADX'] = df['DX'].rolling(window=period).mean()
+
+    # Déduction sur la force de la tendance selon la valeur de l'ADX
+    last_adx = df['ADX'].iloc[-1]
+
+    if last_adx < 20:
+        interpretation = "Tendance faible ou inexistante"
+    elif last_adx < 40:
+        interpretation = "Tendance modérée"
     else:
-        confiance = "faible"
+        interpretation = "Tendance forte"
 
-    rsi_val = rsi.iloc[-1]
-    rsi_signal = None
-    if last_cross == "BUY" and rsi_val < 50:
-        rsi_signal = "Tendance haussière, RSI < 50 : rebond technique possible"
-    elif last_cross == "SELL" and rsi_val > 50:
-        rsi_signal = "Tendance baissière, RSI > 50 : pullback probable"
-        
-    return cross_signal, confiance, rsi_signal
+    return last_adx, interpretation
 
-print(trend_following("EURUSD=X",50,20))
+# Exemple d'appel
+ticker = "EURUSD=X"
+adx_value, interpretation = calculate_adx(ticker)
+print(f"ADX pour {ticker}: {adx_value:.2f} — {interpretation}")

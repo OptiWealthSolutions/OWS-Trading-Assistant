@@ -1,31 +1,29 @@
-import pandas as pd
 import yfinance as yf
-import numpy as np
+import pandas as pd
 
-def sma_crossing (ticker, fast_period=20, slow_period=50):
-    results = []
-    data = yf.download(ticker, period="3mo", interval="1d")
+def sma_crossing(ticker, fast_period=20, slow_period=50):
+    try:
+        data = yf.download(ticker, period="3mo", interval="1d", progress=False)
+        if data.empty:
+            raise ValueError("Données introuvables pour le ticker.")
+    except Exception as e:
+        print(f"Erreur lors du téléchargement des données pour {ticker} : {e}")
+        return pd.DataFrame({'Ticker': [ticker], 'Signal': ['ERROR']})
 
     df = data[['Close']].copy()
     df['SMA_fast'] = df['Close'].rolling(window=fast_period).mean()
     df['SMA_slow'] = df['Close'].rolling(window=slow_period).mean()
-    df['Signal'] = 0
     df['Signal'] = (df['SMA_fast'] > df['SMA_slow']).astype(int)
-    df['Position'] = df['Signal'].diff()
-        
-    if df['Signal'].iloc[-1] == 1:
+
+    # Déterminer le signal final
+    last_signal = df['Signal'].iloc[-1]
+    if last_signal == 1:
         signal = "BUY"
-    elif df['Signal'].iloc[-1] == 0:
+    elif last_signal == 0:
         signal = "SELL"
     else:
         signal = "HOLD"
 
     print(f"{ticker}: {signal}")
 
-    results.append({
-            'Ticker': ticker,
-            'Signal': signal
-            })
-    return pd.DataFrame(results) 
-
-
+    return pd.DataFrame({'Ticker': [ticker], 'Signal': [signal]})
