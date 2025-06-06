@@ -2,31 +2,40 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from settings import currency_commodity_map
+currency_commodity_map = {
+    "AUD": ["GC=F", "HG=F"],  # Gold, Copper
+    "CAD": ["CL=F", "NG=F"],  # Oil, Gas
+    "NZD": ["ZC=F", "ZW=F"],  # Agricultural products
+    "NOK": ["BZ=F"],          # Brent Oil
+    "USD": ["GC=F", "CL=F"],  # Indirectly correlated with many
+    "BRL": ["SB=F", "KC=F"],  # Sugar, Coffee
+    "MXN": ["CL=F", "ZS=F"],  # Oil, Soybean
+    "ZAR": ["GC=F", "PL=F"],  # Gold, Platinum
+}
 
 
-def plot_currency_vs_commodities(ticker="AUDUSD", period="6mo", interval="1d"):
-    base = ticker[:3]  # Exemple : "AUD" depuis "AUDUSD"
+def plot_currency_vs_commodities(ticker, period="6mo", interval="1h"):
+    base = ticker[:3]  # Example: "AUD" from "AUDUSD"
     commodities = currency_commodity_map.get(base.upper(), [])
     
     if not commodities:
-        print(f"Aucune commodité connue pour {base}")
+        print(f"No known commodity for {base}")
         return
 
-    # Télécharger données
-    forex = yf.download(ticker, period=period, interval=interval)["Close"].rename(ticker)
+    # Download data
+    forex = yf.download(ticker, period=period, interval=interval)
+    forex = forex['Close']
     data = pd.DataFrame(forex)
 
     for commo in commodities:
-        commo_data = yf.download(commo, period=period, interval=interval)["Close"].rename(commo)
+        commo_data = yf.download(commo, period=period, interval=interval)
+        commo_data = commo_data['Close']
         data = data.join(commo_data, how="inner")
     
     data.dropna(inplace=True)
     
-    # Affichage
+    # Display
     for commo in commodities:
         fig, ax1 = plt.subplots(figsize=(10, 5))
         ax2 = ax1.twinx()
@@ -40,9 +49,6 @@ def plot_currency_vs_commodities(ticker="AUDUSD", period="6mo", interval="1d"):
         plt.legend()
         plt.grid()
         plt.show()
-
-        # Corrélation glissante
-        rolling_corr = data[ticker].pct_change().rolling(20).corr(data[commo].pct_change())
-        rolling_corr.plot(title=f"Rolling Correlation ({ticker} vs {commo}) - 20 périodes", figsize=(10,3), color="green")
-        plt.grid()
-        plt.show()
+        
+        
+plot_currency_vs_commodities("AUDUSD=X")
