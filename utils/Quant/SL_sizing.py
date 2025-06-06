@@ -22,8 +22,6 @@ def atr_index(ticker):
     atr_res = df['ATR'].iloc[-1]
     return atr_res, round(k_95,1)
 
-atr,k = atr_index("EURUSD=X",20,"6mo")
-
 # --------------- Fonction taille de stop en pips ----------------
 def sl_sizing (atr,k, entry_price,direction):
     if direction == "SELL":
@@ -40,8 +38,6 @@ def sl_sizing (atr,k, entry_price,direction):
 entry_price_test = 1.1303
 sl = sl_sizing(atr,k,entry_price_test,"")
 
-print(sl,k)
-capital = 1000
 
 # --------------- Fonction pip value for differents pairs ----------------
 # def pip_value(pair,lot_size=1,price=None,account_currency="EUR"):

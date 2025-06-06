@@ -1,9 +1,12 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+from settings import max_risk, min_risk
 # --------------- Fonction % max ----------------
-def gestion_risque_adaptative(capital, ticker, max_risk_pct=0.02, min_risk_pct=0.0):
+def gestion_risque_adaptative(capital, ticker,max_risk,min_risk):
     # Calcul std
     fx_std_data = yf.download(ticker, period="6mo", interval="4h")
     fx_df_std = pd.DataFrame(fx_std_data)
@@ -20,7 +23,7 @@ def gestion_risque_adaptative(capital, ticker, max_risk_pct=0.02, min_risk_pct=0
     poids_vol = 0.5
     poids_var = 0.5
     score_risque = current_std * poids_var + current_vol * poids_vol 
-    risque_pct = max(min_risk_pct, max_risk_pct * (1 - score_risque))
+    risque_pct = max(min_risk, max_risk * (1 - score_risque))
     risque_pct = float(round(risque_pct * 100, 2))
     risk_amount = round(capital * (risque_pct/100), 2)
     final_df = pd.DataFrame([{

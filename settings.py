@@ -39,8 +39,9 @@ currency_commodity_map = {
 
 
 # --------------- Testing values ----------------
-capital = 1000
-
+current_capital = 909
+max_risk = 0.02
+min_risk = 0
 
 # --------------- Constants ----------------
 

@@ -28,4 +28,3 @@ def seasonality(ticker):
     
     return plt.show()
 
-seasonality("EURUSD=X")
