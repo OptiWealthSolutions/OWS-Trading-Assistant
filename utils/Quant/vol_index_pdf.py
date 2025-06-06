@@ -56,4 +56,6 @@ def get_vol_index(ticker):
     pdf.savefig(fig2)
     plt.close(fig2)
     
+    return plt.show()
+    
 get_vol_index("EURUSD=X")
