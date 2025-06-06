@@ -2,15 +2,18 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from settings import *
-from utils import *
 
+# Import des fonctions depuis les fichiers spécifiques dans utils
+from utils.Quant import gestion_risque_adaptative, atr_index, sl_sizing, get_vol_index
+from utils.Macro.seasonality import seasonality
+from utils.Technical.plot_tools import plot_currency_vs_commodities
 
 # --------------- Main call fonction----------------
 
 def main_call():
     print("=== Commodities Correlation ===")
     # plot_currency_vs_commodities affiche directement le graphique, pas besoin d'assigner
-    plot_currency_vs_commodities(tickers_default)
+    print(plot_currency_vs_commodities(tickers_default))
     
     print("\n=== Seasonality ===")
     seasonality(tickers_default)
