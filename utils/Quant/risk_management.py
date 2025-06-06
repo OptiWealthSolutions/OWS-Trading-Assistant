@@ -41,6 +41,3 @@ def gestion_risque_adaptative(capital, ticker,max_risk=0.02,min_risk=0):
     }])
 
     return final_df
-
-# Exemple d’appel
-gestion_risque_adaptative(1000, "EURUSD=X")
