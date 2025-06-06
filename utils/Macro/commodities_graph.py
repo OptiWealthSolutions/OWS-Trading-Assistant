@@ -63,4 +63,3 @@ def plot_currency_vs_commodities(ticker, period="6mo", interval="1h"):
 
     return  print(f"Correlation between {ticker} and {commo}: {correlation:.4f}"), correlation
 
-plot_currency_vs_commodities("EURCHF=X")
