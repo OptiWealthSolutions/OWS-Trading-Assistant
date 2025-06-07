@@ -9,10 +9,10 @@ from utils.Quant.risk_management import gestion_risque_adaptative
 from utils.Quant.SL_sizing import atr_index
 from utils.Quant.SL_sizing import sl_sizing
 from utils.Quant.vol_index import get_vol_index
-from utils.Quant.pairs_trade_sys import pairs_trading_summary
+from strategies.pairs_trade_sys import pairs_trading_summary
 # Macro
-from utils.Technical.seasonality import seasonality
-from utils.Technical.sma_crossing import sma_crossing
+from utils.Macro.seasonality import seasonality
+from utils.Technical.indicators_signals import sma_crossing
 from utils.Technical.trend_following import calculate_adx
 # Technical (corrige le nom du fichier ici si nécessaire !)
 from utils.Macro.commodities_graph import plot_currency_vs_commodities
