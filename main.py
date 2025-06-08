@@ -15,7 +15,8 @@ from utils.Technical.indicators_signals import sma_crossing
 from utils.Technical.trend_following import calculate_adx
 # Technical (corrige le nom du fichier ici si nécessaire !)
 from utils.Macro.commodities_graph import plot_currency_vs_commodities
-# PDF generator (si c’est dans main.py tu n’as pas besoin de l’importer)
+# PDF generator (si c’est dans main.py tu n’as pas besoin de l’importer
+from settings import *
 
 
 # --------------- Main call fonction----------------
@@ -36,7 +37,7 @@ def main_call():
     calculate_adx(tickers_default)
     
     print("\n=== Pairs Trading Summary ===")
-    for ticker1, ticker2 in forex_pairs:
+    for ticker1, ticker2 in forex_pairs_correlated :
         if tickers_default in (ticker1, ticker2):
             other_ticker = ticker2 if ticker1 == tickers_default else ticker1
             summary = pairs_trading_summary(tickers_default, other_ticker)

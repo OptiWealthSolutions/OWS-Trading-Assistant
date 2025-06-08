@@ -76,9 +76,10 @@ def pairs_trading_summary(ticker1: str, ticker2: str, duration: str = "1y", save
 if __name__ == "__main__":
     ticker_default = "EURUSD=X"
 
-    for ticker1, ticker2 in forex_pairs:
+    for ticker1, ticker2 in forex_pairs_correlated:
         if ticker_default in (ticker1, ticker2):
             other_ticker = ticker2 if ticker1 == ticker_default else ticker1
             result = pairs_trading_summary(ticker_default, other_ticker)
             print(result)
             print("=" * 80)
+            
