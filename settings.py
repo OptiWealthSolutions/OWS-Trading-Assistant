@@ -39,10 +39,12 @@ currency_commodity_map = {
 
 
 forex_pairs_correlated = [
-    ("EURUSD=X", "GBPUSD=X"),
+    ("AUDJPY=X", "NZDJPY=X"),
     ("AUDUSD=X", "NZDUSD=X"),
-    ("EURUSD=X", "USDCHF=X"),
-    ("USDCAD=X", "CL=F"),  # USD/CAD et WTI
+    ("GBPJPY=X", "EURJPY=X"),
+    ("GBPUSD=X", "EURUSD=X"),
+    ("USDCHF=X", "USDJPY=X"),
+    ("EURUSD=X", "GBPUSD=X")
 ]
 
 # --------------- Testing values ----------------
