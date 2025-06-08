@@ -5,11 +5,13 @@ from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
 
 # Liste des paires forex fortement corrélées
-forex_pairs = [
-    ("EURUSD=X", "GBPUSD=X"),
+forex_pairs_correlated = [
+    ("AUDJPY=X", "NZDJPY=X"),
     ("AUDUSD=X", "NZDUSD=X"),
-    ("EURUSD=X", "USDCHF=X"),
-    ("USDCAD=X", "CL=F")
+    ("GBPJPY=X", "EURJPY=X"),
+    ("GBPUSD=X", "EURUSD=X"),
+    ("USDCHF=X", "USDJPY=X"),
+    ("EURUSD=X", "GBPUSD=X")
 ]
 
 def data_loader(ticker_1, ticker_2, duration):
@@ -74,13 +76,9 @@ def pairs_trading_summary(ticker1: str, ticker2: str, duration: str = "1y", save
 if __name__ == "__main__":
     ticker_default = "EURUSD=X"
 
-    # Chercher les paires contenant le ticker par défaut
-    selected_pairs = [pair for pair in forex_pairs if ticker_default in pair]
-
-    for pair in selected_pairs:
-        ticker1 = ticker_default
-        ticker2 = pair[1] if pair[0] == ticker_default else pair[0]
-
-        result = pairs_trading_summary(ticker1, ticker2)
-        print(result)
-        print("="*80)
+    for ticker1, ticker2 in forex_pairs:
+        if ticker_default in (ticker1, ticker2):
+            other_ticker = ticker2 if ticker1 == ticker_default else ticker1
+            result = pairs_trading_summary(ticker_default, other_ticker)
+            print(result)
+            print("=" * 80)

@@ -36,11 +36,12 @@ def main_call():
     calculate_adx(tickers_default)
     
     print("\n=== Pairs Trading Summary ===")
-    # Exemple avec une paire forex corrélée
-    ticker1 = tickers_default
-    ticker2 = "GBPUSD=X"  # ou une autre paire corrélée
-    summary = pairs_trading_summary(ticker1, ticker2)
-    print(summary)
+    for ticker1, ticker2 in forex_pairs:
+        if tickers_default in (ticker1, ticker2):
+            other_ticker = ticker2 if ticker1 == tickers_default else ticker1
+            summary = pairs_trading_summary(tickers_default, other_ticker)
+            print(summary)
+            print("=" * 80)
     
     print("\n=== Stop Loss Sizing ===")
     print(atr_index(tickers_default))
