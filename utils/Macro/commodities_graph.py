@@ -63,4 +63,3 @@ def plot_currency_vs_commodities(ticker, period="6mo", interval="1h"):
 
     return correlation
 
-plot_currency_vs_commodities("USDJPY=X")
