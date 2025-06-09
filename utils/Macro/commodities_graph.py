@@ -61,5 +61,6 @@ def plot_currency_vs_commodities(ticker, period="6mo", interval="1h"):
         correlations[commo] = correlation
        
 
-    return  print(f"Correlation between {ticker} and {commo}: {correlation:.4f}"), correlation
+    return correlation
 
+plot_currency_vs_commodities("USDJPY=X")

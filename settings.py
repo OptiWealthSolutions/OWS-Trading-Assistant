@@ -23,7 +23,7 @@ fx_tickers = [
 stocks_tickers = []
 
 tickers_default = "EURUSD=X"
-entry_price_ticker_default = 1.13984
+entry_price_ticker_default = 1.4578
 
 # mapping devise/commodité
 currency_commodity_map = {
