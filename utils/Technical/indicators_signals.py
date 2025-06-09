@@ -1,29 +1,47 @@
 import yfinance as yf
+import vectorbt as vbt
 import pandas as pd
+import numpy as np
+#from ta.trend import ADXIndicator
 
-def sma_crossing(ticker, fast_period=20, slow_period=50):
-    try:
-        data = yf.download(ticker, period="3mo", interval="1d", progress=False)
-        if data.empty:
-            raise ValueError("Données introuvables pour le ticker.")
-    except Exception as e:
-        print(f"Erreur lors du téléchargement des données pour {ticker} : {e}")
-        return pd.DataFrame({'Ticker': [ticker], 'Signal': ['ERROR']})
+def signal_strategy(ticker):
+    df = yf.download(ticker, period="1y", interval="1d")
+    close = df['Close']
 
-    df = data[['Close']].copy()
-    df['SMA_fast'] = df['Close'].rolling(window=fast_period).mean()
-    df['SMA_slow'] = df['Close'].rolling(window=slow_period).mean()
-    df['Signal'] = (df['SMA_fast'] > df['SMA_slow']).astype(int)
+    # ===== INDICATEURS =====
 
-    # Déterminer le signal final
-    last_signal = df['Signal'].iloc[-1]
-    if last_signal == 1:
-        signal = "BUY"
-    elif last_signal == 0:
-        signal = "SELL"
-    else:
-        signal = "HOLD"
+    # SMA Crossover
+    sma_fast = vbt.MA.run(close, window=20).ma
+    sma_slow = vbt.MA.run(close, window=50).ma
 
-    print(f"{ticker}: {signal}")
+# Utilise la méthode vectorbt native pour détecter le croisement haussier
+    sma_signal = sma_fast.vbt.crossed_above(sma_slow)
 
-    return pd.DataFrame({'Ticker': [ticker], 'Signal': [signal]})
+    # ADX (utilisation directe du module ta)
+    # adx_ind = ADXIndicator(high=df['High'], low=df['Low'], close=df['Close'], window=14)
+    # adx_signal = adx_ind.adx().reindex_like(sma_signal) >= 35
+
+    # RSI
+    rsi = vbt.RSI.run(close, window=14).rsi
+    rsi_signal = rsi.reindex_like(sma_signal) > 70  # ou intégrer survente avec < 30
+    # Combine entry signal (RSI > 70, SMA crossover, ADX > 35)
+    entries = sma_signal & rsi_signal
+
+    # Exit dès qu'un signal est invalide
+    exits = ~(sma_signal & rsi_signal)
+
+    # ===== BACKTEST =====
+
+    pf = vbt.Portfolio.from_signals(
+        close=close,
+        entries=entries,
+        exits=exits,
+        init_cash=10000,
+        fees=0.001,  # 0.1% frais
+        slippage=0.0005
+    )
+
+    return pf
+
+portfolio = signal_strategy("EURUSD=X")
+portfolio.stats()
