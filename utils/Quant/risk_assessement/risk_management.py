@@ -27,8 +27,8 @@ def gestion_risque_adaptative(capital, ticker,max_risk=0.02,min_risk=0):
 
     # Calcul du score risque
     poids_vol = 0.5
-    poids_var = 0.5
-    score_risque = current_std * poids_var + current_vol * poids_vol 
+    poids_std = 0.5
+    score_risque = current_std * poids_std + current_vol * poids_vol 
     risque_pct = max(min_risk, max_risk * (1 - score_risque))
     risque_pct = float(round(risque_pct * 100, 2))
     risk_amount = round(capital * (risque_pct / 100), 2)
