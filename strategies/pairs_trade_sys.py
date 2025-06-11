@@ -57,19 +57,13 @@ def pairs_trading_summary(ticker1: str, ticker2: str, duration: str = "1y", save
     else:
         interpretation += "- Le spread est proche de sa moyenne (pas de signal fort).\n"
     
-    plt.figure(figsize=(12,6))
-    plt.plot(spread.tail(90))
-    plt.axhline(spread.mean(), color='black', linestyle='--', label='Moyenne du spread')
-    plt.axhline(spread.std(), color='red', linestyle='--', label='STD du spread')
-    plt.title(f'Spread entre {ticker1} et {ticker2} (90 derniers jours)')
-    plt.legend()
+    # plt.figure(figsize=(12,6))
+    # plt.plot(spread.tail(90))
+    # plt.axhline(spread.mean(), color='black', linestyle='--', label='Moyenne du spread')
+    # plt.axhline(spread.std(), color='red', linestyle='--', label='STD du spread')
+    # plt.title(f'Spread entre {ticker1} et {ticker2} (90 derniers jours)')
+    # plt.legend()
     plt.grid()
-
-    if save_path:
-        plt.savefig(save_path)
-        plt.close()
-    else:
-        plt.show()
 
     return interpretation
 

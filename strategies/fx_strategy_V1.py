@@ -6,6 +6,7 @@ import statsmodels.api as sm
 from statsmodels.tsa.stattools import adfuller
 from sklearn.preprocessing import StandardScaler
 import ta
+from ta.momentum import RSIIndicator
 
 # ==================== PAIR TRADING MODEL ====================
 
@@ -216,6 +217,8 @@ accuracy = (pred_class == y).mean()
 print(f"Accuracy du modèle : {accuracy:.4f}")
 
 
+from ta.momentum import RSIIndicator
+
 def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx_series, seuil=1):
     """
     Construit les features pour un modèle ML et génère un signal multi-classe :
@@ -223,21 +226,31 @@ def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx_series, 
      0 = NEUTRAL
      1 = BUY (écart négatif extrême)
     """
+    # S'assurer que inputs sont des Series 1D
+    if isinstance(pair1_close, pd.DataFrame):
+        pair1_close = pair1_close.squeeze()
+    if isinstance(gold_price, pd.DataFrame):
+        gold_price = gold_price.squeeze()
+    if isinstance(adx_series, pd.DataFrame):
+        adx_series = adx_series.squeeze()
+
     df = pd.DataFrame({
         'spread': spread,
         'z_score': zscore,
         'z_score_lag1': zscore.shift(1),
         'vol_spread': spread.rolling(30).std(),
-        'rsi_pair1': ta.rsi(pair1_close),
+        'rsi_pair1': RSIIndicator(close=pair1_close, window=14).rsi(),
         'corr_gold': pair1_close.rolling(30).corr(gold_price),
         'adx': adx_series
     })
+
+    df.dropna(inplace=True)
 
     df['target'] = 0
     df.loc[df['z_score'] > seuil, 'target'] = -1
     df.loc[df['z_score'] < -seuil, 'target'] = 1
 
-    df = df.dropna()
     X = df[['z_score', 'z_score_lag1', 'vol_spread', 'rsi_pair1', 'corr_gold', 'adx']]
     y = df['target']
+
     return X, y
