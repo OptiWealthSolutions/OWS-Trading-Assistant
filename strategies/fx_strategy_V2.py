@@ -108,34 +108,44 @@ def get_commo_corr(ticker, period="6mo", interval="1h"):
     commodities = list(set(currency_commodity_map.get(base1, []) + currency_commodity_map.get(base2, [])))
 
     if not commodities:
-        print(f"No known commodity for {base1} or {base2}")
-        return
+        print(f"Aucune commodity trouvée pour {base1} ou {base2}")
+        return pd.DataFrame()
 
-    # Download data
+    # Données forex (plus robuste et explicite)
     forex = yf.download(ticker, period=period, interval=interval)
-    forex = forex['Close']
-    data = pd.DataFrame(forex)
-    data.name(columns={"Close"}, inplace=True)
+    if forex.empty or 'Close' not in forex.columns:
+        raise ValueError(f"Impossible de récupérer les données de clôture pour le ticker {ticker}")
 
+    forex = forex[['Close']].copy()
+    forex.columns = ['forex']
+    forex.index = forex.index.tz_localize(None)
+    data = forex.copy()
+
+    # Données commodities
     for commo in commodities:
         commo_data = yf.download(commo, period=period, interval=interval)
-        commo_data = commo_data['Close']
-        data = data.join(commo_data, how="inner")
+        if 'Close' not in commo_data.columns:
+            print(f"Pas de 'Close' pour {commo}")
+            continue
+        commo_close = commo_data['Close'].copy()
+        commo_close.name = commo
+        commo_close.index = commo_close.index.tz_localize(None)
+        data = data.join(commo_close, how="inner")
 
-    data.dropna(inplace=True)
+    if data.empty or data.shape[1] < 2:
+        print("Pas assez de données croisées pour corrélation.")
+        return pd.DataFrame()
 
-    # Prepare to store correlations
-    correlations = pd.DataFrame()
+    # Corrélation glissante
     window = 30
-
-    # Display
+    correlations = pd.DataFrame()
     for commo in commodities:
-        # Compute and print rolling correlation
-        forex_returns = data["Close"].pct_change()
+        if commo not in data.columns:
+            continue
+        forex_returns = data['forex'].pct_change()
         commo_returns = data[commo].pct_change()
-        rolling_corr = forex_returns.rolling(window).corr(commo_returns)
-        correlations[commo] = rolling_corr
-       
+        correlations[commo] = forex_returns.rolling(window).corr(commo_returns)
+
     return correlations
 
 # ==================== MAKE DATASET FOR ML ====================

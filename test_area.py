@@ -49,7 +49,6 @@ def plot_currency_vs_commodities(ticker, period="6mo", interval="1h"):
         commo_returns = data[commo].pct_change()
         correlation = forex_returns.corr(commo_returns)
         correlations = correlation
-       
 
     return correlations
 

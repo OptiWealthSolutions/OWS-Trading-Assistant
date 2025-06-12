@@ -3,44 +3,40 @@ from ta.trend import ADXIndicator
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, SGDRegressor
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import yfinance as yf
+from fx_strategy_V2 import *
+from sklearn.model_selection import train_test_split
 
-def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, seuil=1):
-    # Forcer Series 1D sans squeeze
+
+def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, seuil=1):
     if isinstance(pair1_close, pd.DataFrame):
         pair1_close = pair1_close.iloc[:, 0]
     if isinstance(gold_price, pd.DataFrame):
         gold_price = gold_price.iloc[:, 0]
 
-
-    # Align index
     pair1_close = pair1_close.reindex(spread.index)
     gold_price = gold_price.reindex(spread.index)
     zscore = zscore.reindex(spread.index)
+    adx = adx.reindex(spread.index)
 
-    # Calcul RSI sur pair1_close
     rsi_pair1 = RSIIndicator(close=pair1_close, window=14).rsi()
 
-    # Construire DataFrame features
     df = pd.DataFrame({
         'spread': spread,
         'z_score': zscore,
         'z_score_lag1': zscore.shift(1),
         'vol_spread': spread.rolling(30).std(),
         'rsi_pair1': rsi_pair1,
+        'adx': adx
     })
 
     df.dropna(inplace=True)
+    df = df.astype(float)
 
-    # Conversion explicite en float
-    for col in ['z_score', 'z_score_lag1', 'vol_spread', 'rsi_pair1', 'adx']:
-        df[col] = df[col].astype(float)
-
-    # Target : -1 si z_score > seuil, +1 si z_score < -seuil, sinon 0
     df['target'] = 0
     df.loc[df['z_score'] > seuil, 'target'] = -1
     df.loc[df['z_score'] < -seuil, 'target'] = 1
@@ -50,57 +46,51 @@ def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, seuil=1):
 
     return X, y
 
-def main():
-    # Télécharger les données
-    pair1_data = yf.download("EURUSD=X", period="1y")
-    pair1_close = pair1_data["Close"]
-    pair2_close = yf.download("GBPUSD=X", period="1y")["Close"]
-    gold_price = yf.download("GC=F", period="1y")["Close"]
+def main_strat():
+    pair1 = "EURUSD=X"
+    pair2 = "GBPUSD=X"
+    commodity1 = "GC=F"
+    commodity2 = "CL=F"
 
-    # Calculer le spread et le z-score
-    spread = pair1_close - pair2_close
-    rolling_mean = spread.rolling(30).mean()
-    rolling_std = spread.rolling(30).std()
-    zscore = (spread - rolling_mean) / rolling_std
+    df1, df2, df_commo1, df_commo2 = get_all_data(pair1, pair2, commodity1, commodity2)
 
-    # Calcul réel de l'ADX sur pair1_close
-    # adx_indicator = ADXIndicator(high=pair1_data['High'], low=pair1_data['Low'], close=pair1_data['Close'], window=14)
-    # adx_series = adx_indicator.adx()
-    # adx_series = adx_series.astype(float)
+    spread, _, _, _ = engle_granger_test(df1[f"{pair1}_Close"], df2[f"{pair2}_Close"])
+    zscore = (spread - spread.mean()) / spread.std()
 
-    # Préparer le dataset
-    X, y = prepare_dataset_signal(spread, zscore, pair1_close, gold_price)
+    pair1_close = df1[f"{pair1}_Close"]
+    gold_price = df_commo1[f"{commodity1}_Close"] if not df_commo1.empty else pair1_close
 
-    # Convertir en numpy arrays pour scikit-learn
-    X = X.to_numpy()
-    y = y.to_numpy().ravel()  # 1D array
+    adx_series = calculate_adx(pair1)
+    adx = adx_series.reindex(spread.index).fillna(method="bfill")
 
-    # Pipeline de modèle
+    X, y = prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx)
+
+    # Séparation train/test
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+
+    # Pipeline avec standardisation + régression par descente de gradient
     model = make_pipeline(
-        PolynomialFeatures(degree=2, include_bias=False),
         StandardScaler(),
-        LinearRegression()
+        SGDRegressor(loss='squared_error', max_iter=1000, tol=1e-3, random_state=42)
     )
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
 
-    # Entraîner le modèle
-    model.fit(X, y)
+    # Évaluation
+    r2 = r2_score(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    print(f"R2 score : {r2:.4f}")
+    print(f"Mean Squared Error : {mse:.4f}")
 
-    # Prédire sur les données d'entraînement
-    y_pred = model.predict(X)
-
-    # Évaluer
-    mse = mean_squared_error(y, y_pred)
-    r2 = r2_score(y, y_pred)
-    print(f"MSE: {mse:.4f}")
-    print(f"R2: {r2:.4f}")
-
-    # Visualiser la cible vs la prédiction
-    plt.figure(figsize=(10,6))
-    plt.plot(y, label='Target (réelle)')
-    plt.plot(y_pred, label='Prédiction')
+    # Visualisation
+    plt.figure(figsize=(10, 6))
+    plt.plot(y_test.values, label='Vrai signal', marker='o')
+    plt.plot(y_pred, label='Prédiction ML', linestyle='--', marker='x')
+    plt.title("Régression : Signal prédit vs réel")
     plt.legend()
-    plt.title("Régression polynomiale degré 2 - Target vs Prédiction")
+    plt.grid(True)
     plt.show()
 
+
 if __name__ == "__main__":
-    main()
+    main_strat()
