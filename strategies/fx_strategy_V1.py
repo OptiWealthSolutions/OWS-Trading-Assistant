@@ -37,7 +37,6 @@ def engle_granger_test(y_serie: pd.Series, x_serie: pd.Series):
 def pairs_trading_summary(ticker1: str, ticker2: str, duration: str = "1y", save_path=None):
     df = data_loader(ticker1, ticker2, duration)
     spread, p_value, r_squared, params = engle_granger_test(df[f"{ticker1}_Close"], df[f"{ticker2}_Close"])
-    
     cointegration = p_value < 0.05
     interpretation = f"Analyse de la paire {ticker1} / {ticker2} sur {duration}:\n"
     interpretation += f"- Co-intégration détectée : {'Oui' if cointegration else 'Non'} (p-value={p_value:.4f})\n"
@@ -52,15 +51,6 @@ def pairs_trading_summary(ticker1: str, ticker2: str, duration: str = "1y", save
         interpretation += "- Le spread est significativement éloigné de sa moyenne (potentiel signal de trading).\n"
     else:
         interpretation += "- Le spread est proche de sa moyenne (pas de signal fort).\n"
-    
-    # plt.figure(figsize=(12,6))
-    # plt.plot(spread.tail(90))
-    # plt.axhline(spread.mean(), color='black', linestyle='--', label='Moyenne du spread')
-    # plt.axhline(spread.std(), color='red', linestyle='--', label='STD du spread')
-    # plt.title(f'Spread entre {ticker1} et {ticker2} (90 derniers jours)')
-    # plt.legend()
-    #plt.grid()
-
     return zscore
 
 
@@ -217,7 +207,8 @@ accuracy = (pred_class == y).mean()
 print(f"Accuracy du modèle : {accuracy:.4f}")
 
 
-from ta.momentum import RSIIndicator
+
+
 
 def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx_series, seuil=1):
     """
