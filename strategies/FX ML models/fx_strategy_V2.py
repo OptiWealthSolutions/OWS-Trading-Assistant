@@ -7,19 +7,20 @@ from statsmodels.tsa.stattools import adfuller
 from sklearn.preprocessing import StandardScaler
 import ta
 from ta.momentum import RSIIndicator
+from fredapi import Fred
 
 def get_all_data(pair_1,pair_2,commodity_1=None,commodity_2=None,period = "20y"):
-    data_1 = yf.download(pair_1, period=period, interval="1d")
-    data_2 = yf.download(pair_2, period=period, interval="1d")
+    data_1 = yf.download(pair_1, period=period, interval="1d", progress=False, auto_adjust=False)
+    data_2 = yf.download(pair_2, period=period, interval="1d", progress=False, auto_adjust=False)
     data_1.rename(columns={"Close": f"{pair_1}_Close"}, inplace=True)
     data_2.rename(columns={"Close": f"{pair_2}_Close"}, inplace=True)
     df = pd.concat([data_1, data_2], axis=1).dropna()
     
     if commodity_1 is not None:
-        data_commodity1 = yf.download(commodity_1, period=period)
+        data_commodity1 = yf.download(commodity_1, period=period, progress=False, auto_adjust=False)
         data_commodity1.rename(columns={"Close": f"{commodity_1}_Close"}, inplace=True)
     if commodity_2 is not None:
-        data_commodity2 = yf.download(commodity_2, period=period)
+        data_commodity2 = yf.download(commodity_2, period=period, progress=False, auto_adjust=False)
         data_commodity2.rename(columns={"Close": f"{commodity_2}_Close"},inplace=True)
 
     data_commodity1 = data_commodity1 if commodity_1 is not None else pd.DataFrame()
@@ -101,6 +102,15 @@ currency_commodity_map = {
     "ZAR": ["GC=F", "PL=F"],  # Gold, Platinum
 }
 
+def get_macro_data_fred(start='2000-01-01', end=None):
+    cpi = fred.get_series('CPIAUCSL', observation_start=start, observation_end=end)
+    unemployment = fred.get_series('UNRATE', observation_start=start, observation_end=end)
+    gdp = fred.get_series('GDP', observation_start=start, observation_end=end)
+
+    df_macro = pd.concat([cpi, unemployment, gdp], axis=1)
+    df_macro.columns = ['CPI', 'Unemployment', 'GDP']
+    df_macro.index = pd.to_datetime(df_macro.index)
+    return df_macro
 
 def get_commo_corr(ticker, period="10y", interval="1d"):
     base1 = ticker[:3].upper()
@@ -112,7 +122,7 @@ def get_commo_corr(ticker, period="10y", interval="1d"):
         return pd.DataFrame()
 
     # Données forex (plus robuste et explicite)
-    forex = yf.download(ticker, period=period, interval=interval)
+    forex = yf.download(ticker, period=period, interval=interval, auto_adjust=False)
     if forex.empty or 'Close' not in forex.columns:
         raise ValueError(f"Impossible de récupérer les données de clôture pour le ticker {ticker}")
 
@@ -123,7 +133,7 @@ def get_commo_corr(ticker, period="10y", interval="1d"):
 
     # Données commodities
     for commo in commodities:
-        commo_data = yf.download(commo, period=period, interval=interval)
+        commo_data = yf.download(commo, period=period, interval=interval, auto_adjust=False)
         if 'Close' not in commo_data.columns:
             print(f"Pas de 'Close' pour {commo}")
             continue
@@ -150,7 +160,32 @@ def get_commo_corr(ticker, period="10y", interval="1d"):
 
 # ==================== MAKE DATASET FOR ML ====================
 
-def prepare_dataset_signal(spread, zscore, pair1_close, commo_price_1, adx_series, seuil=1):
+def get_interest_rate_difference(pair: str) -> float:
+    """
+    Retourne une estimation simplifiée de l'écart de taux d'intérêt entre les deux devises de la paire.
+    À adapter avec des sources dynamiques (ex: FRED, BCE API).
+    """
+    # Dictionnaire statique (à automatiser plus tard)
+    rates = {
+        "USD": 5.25,
+        "EUR": 4.00,
+        "GBP": 5.25,
+        "JPY": -0.10,
+        "CHF": 1.50,
+        "CAD": 5.00,
+        "AUD": 4.35,
+        "NZD": 5.50,
+    }
+
+    base = pair[:3].upper()
+    quote = pair[3:6].upper()
+
+    if base in rates and quote in rates:
+        return rates[base] - rates[quote]
+    else:
+        return 0.0
+
+def prepare_dataset_signal(spread, zscore, pair1_close, commo_price_1, adx_series, pair1, seuil=1):
     """
     Construit les features pour un modèle ML et génère un signal multi-classe :
     -1 = SELL (écart positif extrême)
@@ -165,6 +200,8 @@ def prepare_dataset_signal(spread, zscore, pair1_close, commo_price_1, adx_serie
     if isinstance(adx_series, pd.DataFrame):
         adx_series = adx_series.squeeze()
 
+    rate_diff = get_interest_rate_difference(pair1)
+
     df = pd.DataFrame({
         'spread': spread,
         'z_score': zscore,
@@ -172,7 +209,8 @@ def prepare_dataset_signal(spread, zscore, pair1_close, commo_price_1, adx_serie
         'vol_spread': spread.rolling(30).std(),
         'rsi_pair1': RSIIndicator(close=pair1_close, window=14).rsi(),
         'rolling_corr_commo': pair1_close.rolling(30).corr(commo_price_1),
-        'adx': adx_series
+        'adx': adx_series,
+        'rate_diff': rate_diff
     })
 
     df.dropna(inplace=True)
@@ -181,7 +219,7 @@ def prepare_dataset_signal(spread, zscore, pair1_close, commo_price_1, adx_serie
     df.loc[df['z_score'] > seuil, 'target'] = -1
     df.loc[df['z_score'] < -seuil, 'target'] = 1
 
-    X = df[['z_score', 'z_score_lag1', 'vol_spread', 'rsi_pair1', 'rolling_corr_commo', 'adx']]
+    X = df[['z_score', 'z_score_lag1', 'vol_spread', 'rsi_pair1', 'rolling_corr_commo', 'adx', 'rate_diff']]
     y = df['target']
 
     return X, y
@@ -189,6 +227,12 @@ def prepare_dataset_signal(spread, zscore, pair1_close, commo_price_1, adx_serie
 
 # ==================== TESTS SIMPLES DE TOUTES LES FONCTIONS ====================
 if __name__ == "__main__":
+    import os
+    from dotenv import load_dotenv
+    from fredapi import Fred
+    load_dotenv()
+    fred = Fred(api_key=os.getenv("FRED_API_KEY"))
+
     pair1 = "EURUSD=X"
     pair2 = "GBPUSD=X"
     commodity1 = "GC=F"
@@ -214,9 +258,9 @@ if __name__ == "__main__":
     spread, _, _, _ = engle_granger_test(df1[f"{pair1}_Close"], df2[f"{pair2}_Close"])
     zscore_full = (spread - spread.mean()) / spread.std()
     gold_price = df_commo1[f"{commodity1}_Close"] if not df_commo1.empty else df1[f"{pair1}_Close"]
-    adx_aligned = adx.reindex(spread.index).fillna(method='bfill')
+    adx_aligned = adx.reindex(spread.index).bfill()
 
-    X, y = prepare_dataset_signal(spread, zscore_full, df1[f"{pair1}_Close"], gold_price, adx_aligned)
+    X, y = prepare_dataset_signal(spread, zscore_full, df1[f"{pair1}_Close"], gold_price, adx_aligned, pair1)
     print("Dataset préparé pour le ML.")
     print(X.head())
     print(y.value_counts())
