@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 import ta
 from ta.momentum import RSIIndicator
 
-def get_all_data(pair_1,pair_2,commodity_1=None,commodity_2=None,period = "10y"):
+def get_all_data(pair_1,pair_2,commodity_1=None,commodity_2=None,period = "20y"):
     data_1 = yf.download(pair_1, period=period, interval="1d")
     data_2 = yf.download(pair_2, period=period, interval="1d")
     data_1.rename(columns={"Close": f"{pair_1}_Close"}, inplace=True)
@@ -102,7 +102,7 @@ currency_commodity_map = {
 }
 
 
-def get_commo_corr(ticker, period="6mo", interval="1h"):
+def get_commo_corr(ticker, period="10y", interval="1d"):
     base1 = ticker[:3].upper()
     base2 = ticker[3:6].upper()
     commodities = list(set(currency_commodity_map.get(base1, []) + currency_commodity_map.get(base2, [])))
