@@ -1,6 +1,7 @@
 # ML_model_fx_strat.py
-from ta.momentum import RSIIndicator
-from ta.trend import ADXIndicator
+from ta.momentum import RSIIndicator, ROCIndicator, StochasticOscillator
+from ta.trend import ADXIndicator, SMAIndicator, EMAIndicator, MACD
+from ta.volatility import BollingerBands, AverageTrueRange
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
@@ -10,10 +11,11 @@ from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import yfinance as yf
 from fx_strategy_V2 import *
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, TimeSeriesSplit
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import settings
+from xgboost import XGBClassifier
 
 
 def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, seuil=1):
@@ -28,6 +30,14 @@ def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, seuil=1
     adx = adx.reindex(spread.index)
 
     rsi_pair1 = RSIIndicator(close=pair1_close, window=14).rsi()
+    sma_20 = SMAIndicator(close=pair1_close, window=20).sma_indicator()
+    ema_20 = EMAIndicator(close=pair1_close, window=20).ema_indicator()
+    macd = MACD(close=pair1_close).macd_diff()
+    bb_bands = BollingerBands(close=pair1_close, window=20)
+    bb_bbh = bb_bands.bollinger_hband()
+    bb_bbl = bb_bands.bollinger_lband()
+    roc = ROCIndicator(close=pair1_close, window=12).roc()
+    atr = AverageTrueRange(high=pair1_close, low=pair1_close, close=pair1_close).average_true_range()
 
     df = pd.DataFrame({
         'spread': spread,
@@ -35,7 +45,14 @@ def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, seuil=1
         'z_score_lag1': zscore.shift(1),
         'vol_spread': spread.rolling(30).std(),
         'rsi_pair1': rsi_pair1,
-        'adx': adx
+        'adx': adx,
+        'sma_20': sma_20,
+        'ema_20': ema_20,
+        'macd': macd,
+        'bb_high': bb_bbh,
+        'bb_low': bb_bbl,
+        'roc': roc,
+        'atr': atr,
     })
 
     df.dropna(inplace=True)
@@ -45,7 +62,8 @@ def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, seuil=1
     df.loc[df['z_score'] > seuil, 'target'] = -1
     df.loc[df['z_score'] < -seuil, 'target'] = 1
 
-    X = df[['z_score', 'z_score_lag1', 'vol_spread', 'rsi_pair1', 'adx']]
+    X = df[['z_score', 'z_score_lag1', 'vol_spread', 'rsi_pair1', 'adx',
+            'sma_20', 'ema_20', 'macd', 'bb_high', 'bb_low', 'roc', 'atr']]
     y = df['target']
 
     return X, y
@@ -202,52 +220,32 @@ def main_strat():
     X, y = prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx)
     print("Distribution des classes dans y :")
     print(y.value_counts())
-    # Séparation train/test
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y)
-    # Pipeline avec standardisation + régression logistique multinomiale
+    # Séparation train/test avec TimeSeriesSplit et XGBClassifier
+    tscv = TimeSeriesSplit(n_splits=5)
     model = make_pipeline(
         StandardScaler(),
-        LogisticRegression(multi_class='multinomial', max_iter=1000, solver='lbfgs', class_weight='balanced')
+        XGBClassifier(
+            objective='multi:softprob',
+            num_class=3,
+            eval_metric='mlogloss',
+            use_label_encoder=False,
+            n_estimators=100,
+            max_depth=4,
+            learning_rate=0.1,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            random_state=42
+        )
     )
-    model.fit(X_train, y_train)
 
-    # Prédiction des classes (signal binaire)
-    y_pred_class = model.predict(X_test)
+    for fold, (train_index, test_index) in enumerate(tscv.split(X)):
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+        model.fit(X_train, y_train)
+        y_pred_class = model.predict(X_test)
 
-    # Prédiction des probabilités par classe (niveau de confiance)
-    y_proba = model.predict_proba(X_test)  # matrice (n_samples, n_classes)
-
-    # Évaluation
-    r2 = r2_score(y_test, y_pred_class)
-    mse = mean_squared_error(y_test, y_pred_class)
-    print(f"R2 score : {r2:.4f}")
-    print(f"Mean Squared Error : {mse:.4f}")
-
-    # Visualisation
-    plt.figure(figsize=(10, 6))
-    plt.plot(y_test.values, label='Vrai signal', marker='o')
-    plt.plot(y_pred_class, label='Prédiction ML', linestyle='--', marker='x')
-    plt.title("Régression : Signal prédit vs réel")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-
-    # Affichage des 10 premiers exemples avec proba
-    classes = model.named_steps['logisticregression'].classes_
-
-    for i in range(10):
-        proba_str = ", ".join([f"{cls}: {prob:.2f}" for cls, prob in zip(classes, y_proba[i])])
-        print(f"Index {i} - Vrai signal: {y_test.iloc[i]}, Prédiction: {y_pred_class[i]}, Probabilités: [{proba_str}]")
-    accuracy = accuracy_score(y_test, y_pred_class)
-    print(f"Accuracy : {accuracy:.4f}")
-
-    print("Classification report :")
-    print(classification_report(y_test, y_pred_class))
-
-    print("Matrice de confusion :")
-    print(confusion_matrix(y_test, y_pred_class))
-
-    return "done"
+        acc = accuracy_score(y_test, y_pred_class)
+        print(f"Fold {fold + 1} - Accuracy: {acc:.4f}")
 
 
 if __name__ == "__main__":
