@@ -1,29 +1,3 @@
-# settings.py
-tickers = [
-    "EURUSD=X",
-    "GBPUSD=X",
-    "USDJPY=X",
-    "AUDUSD=X",
-    "USDCAD=X",
-    "USDCHF=X",
-    "NZDUSD=X"
-]
-
-# Example correlation matrix placeholder (empty dictionary)
-correlation_matrix = {}
-
-# Optional commodity mapping for currencies
-commodity_mapping = {
-    "USD": "CL=F",   # Crude Oil
-    "EUR": "GC=F",   # Gold
-    "GBP": "GC=F",
-    "JPY": "SI=F",   # Silver
-    "AUD": "XAU=X",  # Gold spot
-    "CAD": "CL=F",
-    "CHF": "XAG=X",  # Silver spot
-    "NZD": "XAU=X"
-}
-
 # ML_model_fx_strat.py
 from ta.momentum import RSIIndicator
 from ta.trend import ADXIndicator
@@ -115,7 +89,7 @@ def run_model_for_pair(pair1, pair2):
 
     model = make_pipeline(
         StandardScaler(),
-        LogisticRegression(multi_class='multinomial', max_iter=1000, solver='lbfgs', class_weight='balanced')
+        LogisticRegression(multi_class='multinomial', max_iter=10000, solver='lbfgs', class_weight='balanced')
     )
     model.fit(X_train, y_train)
 
@@ -144,6 +118,49 @@ def run_model_for_pair(pair1, pair2):
     }
 
 
+def save_results_to_pdf(df_results, filename="ml_signals_report.pdf"):
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(12, len(df_results)*0.5 + 1))
+    ax.axis('off')
+
+    # Couleurs lignes selon signal
+    row_colors = []
+    for sig in df_results['signal']:
+        if sig == 'SELL':
+            row_colors.append("#ff4d4d89")  # rouge clair
+        elif sig == 'BUY':
+            row_colors.append("#4CAF4F76")  # vert
+        else:
+            row_colors.append('white')    # blanc fond neutre
+
+    # Création du tableau matplotlib
+    table = ax.table(cellText=df_results.values,
+                     colLabels=df_results.columns,
+                     cellColours=[[color]*len(df_results.columns) for color in row_colors],
+                     cellLoc='center',
+                     loc='center')
+
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1, 1.5)
+
+    # Ajuster la couleur du texte (noir par défaut, sauf rouge/vert sur signal)
+    for i, sig in enumerate(df_results['signal']):
+        for j in range(len(df_results.columns)):
+            cell = table[i+1, j]  # +1 car ligne 0 = header
+            if sig == 'SELL':
+                cell.get_text().set_color('darkred')
+            elif sig == 'BUY':
+                cell.get_text().set_color('darkgreen')
+            else:
+                cell.get_text().set_color('black')
+
+    plt.tight_layout()
+    plt.savefig(filename)
+    print(f"Report saved as {filename}")
+    plt.close()
+
+
 def test_all_pairs():
     results = []
     tickers = settings.tickers
@@ -158,6 +175,9 @@ def test_all_pairs():
     df_results = pd.DataFrame(results)
     print("ML Model Prediction Results for all pairs:")
     print(df_results)
+
+    save_results_to_pdf(df_results)
+
     return df_results
 
 

@@ -36,10 +36,10 @@ commodity_mapping = {
     "EUR": "GC=F",   # Gold
     "GBP": "GC=F",
     "JPY": "SI=F",   # Silver
-    "AUD": "XAU=X",  # Gold spot
+    "AUD": "GC=F",  # Gold spot
     "CAD": "CL=F",
     "CHF": "XAG=X",  # Silver spot
-    "NZD": "XAU=X",
+    "NZD": "GC=F",
     "MXN": "CL=F",   # Par défaut pétrole
-    "ZAR": "XAU=X"   # Par défaut or
+    "ZAR": "GC=F"   # Par défaut or
 }
