@@ -576,24 +576,23 @@ def test_out_of_sample(pair1, pair2, train_start, train_end, test_start, test_en
 
 # --------------- GESTION DE RISQUE ADAPTATIVE ----------------
 
-def gestion_risque_adaptative(capital, ticker,max_risk=0.02,min_risk=0):
-    
-    # Calcul std
-    fx_std_data = yf.download(ticker, period="6mo", interval="4h", progress=False)
-    fx_df_std = pd.DataFrame(fx_std_data)
-    fx_df_std['Log Returns'] = np.log(fx_df_std['Close'] / fx_df_std['Close'].shift(1))
-    fx_df_std['STD'] = fx_df_std['Log Returns'].std()
-    current_std = fx_df_std['STD'].iloc[-1]
+def gestion_risque_adaptative(capital, ticker, fx_df_std=None, fx_df_vol=None, max_risk=0.02, min_risk=0):
+    if fx_df_std is None or fx_df_vol is None:
+        # téléchargement seulement si nécessaire
+        fx_std_data = yf.download(ticker, period="6mo", interval="4h", progress=False)
+        fx_df_std = pd.DataFrame(fx_std_data)
+        fx_df_std['Log Returns'] = np.log(fx_df_std['Close'] / fx_df_std['Close'].shift(1))
+        fx_df_std['STD'] = fx_df_std['Log Returns'].std()
 
-    # Calcul vol
-    fx_vol_data_brut = yf.download(ticker, period="6mo", interval="4h")
-    fx_df_vol = pd.DataFrame(fx_vol_data_brut)
-    fx_df_vol['Log Returns'] = np.log(fx_df_vol['Close'] / fx_df_vol['Close'].shift(1))
-    fx_df_vol['Volatility_20D'] = fx_df_vol['Log Returns'].rolling(window=20).std(ddof=0) * 100
-    fx_df_vol.dropna(inplace=True)
+        fx_vol_data_brut = yf.download(ticker, period="6mo", interval="4h", progress=False)
+        fx_df_vol = pd.DataFrame(fx_vol_data_brut)
+        fx_df_vol['Log Returns'] = np.log(fx_df_vol['Close'] / fx_df_vol['Close'].shift(1))
+        fx_df_vol['Volatility_20D'] = fx_df_vol['Log Returns'].rolling(window=20).std(ddof=0) * 100
+        fx_df_vol.dropna(inplace=True)
+
+    current_std = fx_df_std['STD'].iloc[-1]
     current_vol = fx_df_vol['Volatility_20D'].iloc[-1]
 
-    # Calcul du score risque
     poids_vol = 0.5
     poids_std = 0.5
     score_risque = current_std * poids_std + current_vol * poids_vol 
