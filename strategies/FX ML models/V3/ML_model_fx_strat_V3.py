@@ -19,6 +19,17 @@ from xgboost import XGBClassifier
 from sklearn.metrics import ConfusionMatrixDisplay
 from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import TimeSeriesSplit
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas
+import matplotlib.font_manager as fm
+
+# Set up Menlo font for matplotlib
+menlo_path = '/System/Library/Fonts/Menlo.ttc'  # macOS system path for Menlo font
+menlo_prop = fm.FontProperties(fname=menlo_path)
+import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = menlo_prop.get_name()
+
 
 def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=None, seuil=1):
     if isinstance(pair1_close, pd.DataFrame):
@@ -108,10 +119,11 @@ def save_results_to_pdf(df_results, filename="ml_signals_report_V3.pdf"):
     table.set_fontsize(10)
     table.scale(1, 1.5)
 
-    # Ajuster la couleur du texte (noir par défaut, sauf rouge/vert sur signal)
+    # Ajuster la couleur du texte et la police Menlo
     for i, sig in enumerate(df_results['signal']):
         for j in range(len(df_results.columns)):
             cell = table[i+1, j]  # +1 car ligne 0 = header
+            cell.get_text().set_fontproperties(menlo_prop)  # force Menlo font
             if sig == 'SELL':
                 cell.get_text().set_color('darkred')
             elif sig == 'BUY':

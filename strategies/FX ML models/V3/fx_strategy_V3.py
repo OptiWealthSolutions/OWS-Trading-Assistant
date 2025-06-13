@@ -231,39 +231,3 @@ def prepare_dataset_signal(spread, zscore, pair1_close, commo_price_1, adx_serie
     y = df['target']
 
     return X, y
-
-
-# ==================== TESTS SIMPLES DE TOUTES LES FONCTIONS ====================
-if __name__ == "__main__":
-
-    pair1 = "EURUSD=X"
-    pair2 = "GBPUSD=X"
-    commodity1 = "GC=F"
-    commodity2 = "CL=F"
-
-    # Chargement des données
-    df1, df2, df_commo1, df_commo2 = get_all_data(pair1, pair2, commodity1, commodity2)
-    print("Données chargées avec succès.")
-
-    # Test cointegration et z-score
-    zscore = pairs_trading_summary(pair1, pair2, df1, df2)
-    print("Z-score calculé.")
-
-    # Test ADX
-    adx = calculate_adx(pair1)
-    print("ADX calculé.")
-
-    # Test corrélation commodities
-    corr_df = get_commo_corr(pair1)
-    print("Corrélation avec les commodities calculée.")
-
-    # Préparation dataset ML
-    spread, _, _, _ = engle_granger_test(df1[f"{pair1}_Close"], df2[f"{pair2}_Close"])
-    zscore_full = (spread - spread.mean()) / spread.std()
-    gold_price = df_commo1[f"{commodity1}_Close"] if not df_commo1.empty else df1[f"{pair1}_Close"]
-    adx_aligned = adx.reindex(spread.index).bfill()
-
-    X, y = prepare_dataset_signal(spread, zscore_full, df1[f"{pair1}_Close"], gold_price, adx_aligned, pair1)
-    print("Dataset préparé pour le ML.")
-    print(X.head())
-    print(y.value_counts())
