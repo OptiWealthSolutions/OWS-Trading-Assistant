@@ -103,8 +103,16 @@ currency_commodity_map = {
 }
 
 def get_macro_data_fred(start='2000-01-01', end=None):
+    from dotenv import load_dotenv
+    import os
+    load_dotenv()
+    key = os.getenv("FRED_API_KEY")
+    if not key:
+        print("FRED API key is missing. Returning empty macro DataFrame.")
+        return pd.DataFrame()
+    fred = Fred(api_key=key)
     cpi = fred.get_series('CPIAUCSL', observation_start=start, observation_end=end)
-    unemployment = Fred.get_series('UNRATE', observation_start=start, observation_end=end)
+    unemployment = fred.get_series('UNRATE', observation_start=start, observation_end=end)
     gdp = fred.get_series('GDP', observation_start=start, observation_end=end)
 
     df_macro = pd.concat([cpi, unemployment, gdp], axis=1)
@@ -167,14 +175,14 @@ def get_interest_rate_difference(pair: str) -> float:
     """
     # Dictionnaire statique (à automatiser plus tard)
     rates = {
-        "USD": 5.25,
-        "EUR": 4.00,
-        "GBP": 5.25,
-        "JPY": -0.10,
-        "CHF": 1.50,
-        "CAD": 5.00,
-        "AUD": 4.35,
-        "NZD": 5.50,
+        "USD": 4.50,
+        "EUR": 2.15,
+        "GBP": 4.25,
+        "JPY": 0.50,
+        "CHF": 0.25,
+        "CAD": 2.75,
+        "AUD": 3.85,
+        "NZD": 3.25,
     }
 
     base = pair[:3].upper()
@@ -227,11 +235,6 @@ def prepare_dataset_signal(spread, zscore, pair1_close, commo_price_1, adx_serie
 
 # ==================== TESTS SIMPLES DE TOUTES LES FONCTIONS ====================
 if __name__ == "__main__":
-    import os
-    from dotenv import load_dotenv
-    from fredapi import Fred
-    load_dotenv()
-    fred = Fred(api_key=os.getenv("FRED_API_KEY"))
 
     pair1 = "EURUSD=X"
     pair2 = "GBPUSD=X"

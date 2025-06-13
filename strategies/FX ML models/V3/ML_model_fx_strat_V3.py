@@ -17,11 +17,9 @@ import settings
 from xgboost import XGBClassifier
 from sklearn.metrics import ConfusionMatrixDisplay
 from imblearn.over_sampling import SMOTE
-import os
-from dotenv import load_dotenv
-load_dotenv()
-fred = Fred(api_key=os.getenv("FRED_API_KEY"))
-
+import shap
+from sklearn.model_selection import TimeSeriesSplit
+import shap
 
 def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=None, seuil=1):
     if isinstance(pair1_close, pd.DataFrame):
@@ -87,82 +85,7 @@ def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_d
     return X, y
 
 
-def run_model_for_pair(pair1, pair2):
-    # Determine commodity for pair1 currency from mapping, fallback to pair1 close if none
-    base_currency1 = pair1[:3]  # e.g. 'EUR' from 'EURUSD=X'
-    commodity1 = settings.commodity_mapping.get(base_currency1, None)
-    commodity2 = None  # Not used in current logic but kept for compatibility
-
-    df1, df2, df_commo1, df_commo2 = get_all_data(pair1, pair2, commodity1, commodity2)
-
-    if df1.empty or df2.empty:
-        print(f"Data not available for pair {pair1} or {pair2}. Skipping.")
-        return None
-
-    # Get macro data
-    macro_data = get_macro_data_fred()
-
-    spread, _, _, _ = engle_granger_test(df1[f"{pair1}_Close"], df2[f"{pair2}_Close"])
-    zscore = (spread - spread.mean()) / spread.std()
-
-    pair1_close = df1[f"{pair1}_Close"]
-    gold_price = df_commo1[f"{commodity1}_Close"] if (commodity1 and not df_commo1.empty) else pair1_close
-
-    adx_series = calculate_adx(pair1)
-    adx = adx_series.reindex(spread.index).bfill()
-
-    X, y = prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=macro_data)
-
-    if X.empty or y.empty:
-        print(f"Insufficient data after preparation for pair {pair1} and {pair2}. Skipping.")
-        return None
-
-    # Train/test split - use all data except last day for training, last day for prediction
-    if len(X) < 2:
-        print(f"Not enough data points for pair {pair1} and {pair2}. Skipping.")
-        return None
-
-    X_train = X.iloc[:-1]
-    y_train = y.iloc[:-1]
-    X_pred = X.iloc[-1:]
-
-    # Apply SMOTE to balance classes
-    smote = SMOTE(random_state=42)
-    X_resampled, y_resampled = smote.fit_resample(X_train, y_train)
-
-    model = make_pipeline(
-        StandardScaler(),
-        LogisticRegression(multi_class='multinomial', max_iter=10000, solver='lbfgs', class_weight='balanced')
-    )
-    model.fit(X_resampled, y_resampled)
-
-    y_pred_class = model.predict(X_pred)[0]
-    y_proba = model.predict_proba(X_pred)[0]
-
-    # Get index of predicted class in classes array to get probability
-    classes = model.named_steps['logisticregression'].classes_
-    class_index = np.where(classes == y_pred_class)[0][0]
-    confidence = y_proba[class_index]
-
-    # Interpret signal
-    if y_pred_class == 2:
-        signal = 'BUY'
-    elif y_pred_class == 0:
-        signal = 'SELL'
-    else:
-        signal = 'WAIT'
-
-    return {
-        'pair1': pair1,
-        'pair2': pair2,
-        'predicted_class': y_pred_class,
-        'confidence': confidence,
-        'signal': signal
-    }
-
-
 def save_results_to_pdf(df_results, filename="ml_signals_report.pdf"):
-    import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(12, len(df_results)*0.5 + 1))
     ax.axis('off')
 
@@ -308,6 +231,188 @@ def test_all_pairs():
     return df_results
 
 
+def test_single_pair(pair1, pair2):
+
+    print(f"\n🔍 Test du modèle sur la paire : {pair1} / {pair2}")
+    base_currency1 = pair1[:3]
+    commodity1 = settings.commodity_mapping.get(base_currency1, None)
+
+    df1, df2, df_commo1, _ = get_all_data(pair1, pair2, commodity1, None)
+    if df1.empty or df2.empty:
+        print("❌ Données indisponibles.")
+        return
+
+    macro_data = get_macro_data_fred()
+    spread, _, _, _ = engle_granger_test(df1[f"{pair1}_Close"], df2[f"{pair2}_Close"])
+    zscore = (spread - spread.mean()) / spread.std()
+    pair1_close = df1[f"{pair1}_Close"]
+    gold_price = df_commo1[f"{commodity1}_Close"] if (commodity1 and not df_commo1.empty) else pair1_close
+    adx = calculate_adx(pair1).reindex(spread.index).bfill()
+
+    X, y = prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=macro_data)
+    if X.empty or len(X) < 10:
+        print("❌ Données insuffisantes pour entraîner le modèle.")
+        return
+
+    print(f"✔️ Dataset prêt. Nombre de points : {len(X)}")
+    print("Distribution des classes cibles :\n", y.value_counts())
+
+    smote = SMOTE(random_state=42)
+    X_resampled, y_resampled = smote.fit_resample(X, y)
+
+    model = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(multi_class='multinomial', max_iter=10000, solver='lbfgs', class_weight='balanced')
+    )
+
+    # Séparation train/test simple (20% test)
+    X_train, X_test, y_train, y_test = train_test_split(
+    X_resampled, y_resampled, test_size=0.2, stratify=y_resampled, random_state=42)
+
+    model.fit(X_train, y_train)  # <-- Important : entraînement du modèle
+
+    y_pred = model.predict(X_test)
+
+    # Résumé prédiction finale sur test set
+    results = []
+    for idx in range(len(y_test)):
+        pred_class = y_pred[idx]
+        true_class = y_test.iloc[idx]
+        confidence = np.max(model.predict_proba(X_test.iloc[[idx]]))
+        signal = 'WAIT'
+        if pred_class == 0:
+            signal = 'SELL'
+        elif pred_class == 2:
+            signal = 'BUY'
+        results.append({
+            'index': y_test.index[idx],
+            'true_class': true_class,
+            'predicted_class': pred_class,
+            'confidence': confidence,
+            'signal': signal
+        })
+    df_results = pd.DataFrame(results)
+
+    print("\n📊 Rapport de classification :")
+    print(classification_report(y_test, y_pred))
+
+    print("\n🧮 Matrice de confusion :")
+    disp = ConfusionMatrixDisplay.from_estimator(model, X_test, y_test)
+    plt.title("Matrice de confusion (SELL/WAIT/BUY)")
+    plt.show()
+
+    # Affiche la distribution des erreurs
+    errors = y_test != y_pred
+    plt.figure(figsize=(8,4))
+    plt.hist(errors.astype(int), bins=3)
+    plt.xticks([0,1])
+    plt.title("Distribution des erreurs (0=correct, 1=erreur)")
+    plt.show()
+
+    # Courbes de probabilités prédites
+    probas = model.predict_proba(X_test)
+    plt.figure(figsize=(12, 5))
+    plt.plot(probas[:, 0], label="Proba SELL")
+    plt.plot(probas[:, 1], label="Proba WAIT")
+    plt.plot(probas[:, 2], label="Proba BUY")
+    plt.title("Probabilités des classes sur le test set")
+    plt.xlabel("Index (temps)")
+    plt.ylabel("Probabilité")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    print("\n📈 Explications SHAP :")
+    explainer = shap.Explainer(model.named_steps['logisticregression'], X_train, feature_names=X.columns)
+    shap_values = explainer(X_test)
+
+    shap.summary_plot(shap_values, X_test, plot_type="bar", show=True)
+    # Sauvegarde résultats dans PDF
+    save_results_to_pdf(df_results)
+
+    # Validation croisée temporelle avec TimeSeriesSplit
+    print("\n🔄 Validation croisée temporelle avec TimeSeriesSplit")
+    tscv = TimeSeriesSplit(n_splits=5)
+    accuracies = []
+    fold = 1
+    for train_index, test_index in tscv.split(X_resampled):
+        X_train_cv, X_test_cv = X_resampled.iloc[train_index], X_resampled.iloc[test_index]
+        y_train_cv, y_test_cv = y_resampled.iloc[train_index], y_resampled.iloc[test_index]
+        model.fit(X_train_cv, y_train_cv)
+        y_pred_cv = model.predict(X_test_cv)
+        acc = accuracy_score(y_test_cv, y_pred_cv)
+        accuracies.append(acc)
+        print(f"Fold {fold} Accuracy: {acc:.4f}")
+        fold += 1
+    print(f"Moyenne accuracy CV : {np.mean(accuracies):.4f}")
+
+
+def test_all_pairs_pdf_only():
+    results = []
+    tickers = settings.tickers
+    macro_data = get_macro_data_fred()
+
+    for i in range(len(tickers) - 1):
+        pair1 = tickers[i]
+        pair2 = tickers[i + 1]
+        base_currency1 = pair1[:3]
+        commodity1 = settings.commodity_mapping.get(base_currency1, None)
+        commodity2 = None
+
+        df1, df2, df_commo1, df_commo2 = get_all_data(pair1, pair2, commodity1, commodity2)
+
+        if df1.empty or df2.empty:
+            continue
+
+        spread, _, _, _ = engle_granger_test(df1[f"{pair1}_Close"], df2[f"{pair2}_Close"])
+        zscore = (spread - spread.mean()) / spread.std()
+
+        pair1_close = df1[f"{pair1}_Close"]
+        gold_price = df_commo1[f"{commodity1}_Close"] if (commodity1 and not df_commo1.empty) else pair1_close
+
+        adx_series = calculate_adx(pair1)
+        adx = adx_series.reindex(spread.index).bfill()
+
+        X, y = prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=macro_data)
+
+        if X.empty or y.empty or len(X) < 2:
+            continue
+
+        smote = SMOTE(random_state=42)
+        X_resampled, y_resampled = smote.fit_resample(X, y)
+
+        model = make_pipeline(
+            StandardScaler(),
+            LogisticRegression(multi_class='multinomial', max_iter=10000, solver='lbfgs', class_weight='balanced')
+        )
+        model.fit(X_resampled, y_resampled)
+
+        X_pred = X.iloc[-1:].values
+        y_pred_class = model.predict(X_pred)[0]
+        y_proba = model.predict_proba(X_pred)[0]
+        classes = model.named_steps['logisticregression'].classes_
+        class_index = np.where(classes == y_pred_class)[0][0]
+        confidence = y_proba[class_index]
+
+        if y_pred_class == 2:
+            signal = 'BUY'
+        elif y_pred_class == 0:
+            signal = 'SELL'
+        else:
+            signal = 'WAIT'
+
+        results.append({
+            'pair1': pair1,
+            'pair2': pair2,
+            'predicted_class': y_pred_class,
+            'confidence': confidence,
+            'signal': signal
+        })
+
+    df_results = pd.DataFrame(results)
+    save_results_to_pdf(df_results)
+    return df_results
+
 if __name__ == "__main__":
-    #test_all_pairs()
-    test_all_pairs()
+    test_all_pairs_pdf_only()
+    pass
