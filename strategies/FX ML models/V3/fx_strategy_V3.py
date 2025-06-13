@@ -232,4 +232,5 @@ def prepare_dataset_signal(spread, zscore, pair1_close, commo_price_1, adx_serie
 
     return X, y
 
+
 warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn.linear_model")
