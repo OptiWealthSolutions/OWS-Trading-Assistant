@@ -9,7 +9,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import yfinance as yf
-from fx_strategy_V2 import *
+from fx_strategy_V3 import *
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
@@ -21,6 +21,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 fred = Fred(api_key=os.getenv("FRED_API_KEY"))
+
 
 def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=None, seuil=1):
     if isinstance(pair1_close, pd.DataFrame):
@@ -307,75 +308,6 @@ def test_all_pairs():
     return df_results
 
 
-def main_strat():
-    # Original main strat kept for backward compatibility if needed
-    pair1 = "EURUSD=X"
-    pair2 = "GBPUSD=X"
-    commodity1 = "GC=F"
-    commodity2 = "CL=F"
-
-    df1, df2, df_commo1, df_commo2 = get_all_data(pair1, pair2, commodity1, commodity2)
-
-    # Get macro data
-    macro_data = get_macro_data_fred()
-
-    spread, _, _, _ = engle_granger_test(df1[f"{pair1}_Close"], df2[f"{pair2}_Close"])
-    zscore = (spread - spread.mean()) / spread.std()
-
-    pair1_close = df1[f"{pair1}_Close"]
-    gold_price = df_commo1[f"{commodity1}_Close"] if not df_commo1.empty else pair1_close
-
-    adx_series = calculate_adx(pair1)
-    adx = adx_series.reindex(spread.index).bfill()
-
-    X, y = prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=macro_data)
-    print("Distribution des classes dans y :")
-    print(y.value_counts())
-    # Séparation train/test avec TimeSeriesSplit et XGBClassifier
-
-    # Apply SMOTE before splitting
-    smote = SMOTE(random_state=42)
-    X_resampled, y_resampled = smote.fit_resample(X, y)
-
-    tscv = TimeSeriesSplit(n_splits=5)
-    model = make_pipeline(
-        StandardScaler(),
-        XGBClassifier(
-            objective='multi:softprob',
-            num_class=3,
-            eval_metric='mlogloss',
-            n_estimators=100,
-            max_depth=4,
-            learning_rate=0.1,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            random_state=42
-        )
-    )
-
-    for fold, (train_index, test_index) in enumerate(tscv.split(X_resampled)):
-        X_train, X_test = X_resampled.iloc[train_index], X_resampled.iloc[test_index]
-        y_train, y_test = y_resampled.iloc[train_index], y_resampled.iloc[test_index]
-        model.fit(X_train, y_train)
-        y_pred_class = model.predict(X_test)
-        print(f"Fold {fold + 1} - Accuracy: {accuracy_score(y_test, y_pred_class):.4f}")
-        print("Classification Report:")
-        print(classification_report(y_test, y_pred_class))
-        print("Confusion Matrix:")
-        print(confusion_matrix(y_test, y_pred_class))
-        ConfusionMatrixDisplay.from_estimator(model, X_test, y_test)
-        plt.title("Matrice de confusion")
-        plt.show()
-
-        # Probabilités (softmax) sur X_test
-        probas = model.predict_proba(X_test)
-        plt.plot(probas[:, 0], label="Prob SELL")
-        plt.plot(probas[:, 1], label="Prob WAIT")
-        plt.plot(probas[:, 2], label="Prob BUY")
-        plt.legend()
-        plt.title("Probabilités des classes dans le temps")
-        plt.show()
-
 if __name__ == "__main__":
     #test_all_pairs()
-    main_strat()
+    test_all_pairs()

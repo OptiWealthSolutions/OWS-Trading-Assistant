@@ -104,7 +104,7 @@ currency_commodity_map = {
 
 def get_macro_data_fred(start='2000-01-01', end=None):
     cpi = fred.get_series('CPIAUCSL', observation_start=start, observation_end=end)
-    unemployment = fred.get_series('UNRATE', observation_start=start, observation_end=end)
+    unemployment = Fred.get_series('UNRATE', observation_start=start, observation_end=end)
     gdp = fred.get_series('GDP', observation_start=start, observation_end=end)
 
     df_macro = pd.concat([cpi, unemployment, gdp], axis=1)
