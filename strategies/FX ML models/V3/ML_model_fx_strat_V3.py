@@ -1,4 +1,4 @@
-
+# --------------- APPEL DE TOUS LES MODULES ET FONCITONS EXTERNES AUX FICHIER ----------------
 from ta.momentum import RSIIndicator, ROCIndicator, StochasticOscillator
 from ta.trend import ADXIndicator, SMAIndicator, EMAIndicator, MACD
 from ta.volatility import BollingerBands, AverageTrueRange
@@ -23,25 +23,29 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 import matplotlib.font_manager as fm
-
+import warnings
 # Set up Menlo font for matplotlib
 menlo_path = '/System/Library/Fonts/Menlo.ttc'  # macOS system path for Menlo font
 menlo_prop = fm.FontProperties(fname=menlo_path)
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = menlo_prop.get_name()
 
+warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn.linear_model")
+# --------------- PREPARE DATA SET FONCTION ----------------
 
 def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=None, seuil=1):
     if isinstance(pair1_close, pd.DataFrame):
         pair1_close = pair1_close.iloc[:, 0]
     if isinstance(gold_price, pd.DataFrame):
         gold_price = gold_price.iloc[:, 0]
-
+        
+    #liste des indicateurs calculés dans "fx_strategy_V3;py"
     pair1_close = pair1_close.reindex(spread.index)
     gold_price = gold_price.reindex(spread.index)
     zscore = zscore.reindex(spread.index)
     adx = adx.reindex(spread.index)
-
+    
+    #liste des indicateurs techniques utilisés dans la regression logistique mutlinomiale
     rsi_pair1 = RSIIndicator(close=pair1_close, window=14).rsi()
     sma_20 = SMAIndicator(close=pair1_close, window=20).sma_indicator()
     ema_20 = EMAIndicator(close=pair1_close, window=20).ema_indicator()
@@ -51,7 +55,7 @@ def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_d
     bb_bbl = bb_bands.bollinger_lband()
     roc = ROCIndicator(close=pair1_close, window=12).roc()
     atr = AverageTrueRange(high=pair1_close, low=pair1_close, close=pair1_close).average_true_range()
-
+    #indicateur macro utilisé dans la regression multinomiale
     rate_diff = get_interest_rate_difference(pair1_close.name if hasattr(pair1_close, 'name') else "")
 
     df = pd.DataFrame({
@@ -94,6 +98,8 @@ def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_d
 
     return X, y
 
+# --------------- SAUVERGARDE EN PDF ----------------
+
 def save_results_to_pdf(df_results, filename="ml_signals_report_V3.pdf"):
     fig, ax = plt.subplots(figsize=(12, len(df_results)*0.5 + 1))
     ax.axis('off')
@@ -135,6 +141,8 @@ def save_results_to_pdf(df_results, filename="ml_signals_report_V3.pdf"):
     plt.savefig(filename)
     print(f"Report saved as {filename}")
     plt.close()
+
+# --------------- TETS DE LA STRATEGIE SUR TOUTES LES PAIRES DE "settings.py" ----------------
 
 def test_all_pairs():
     results = []
@@ -238,6 +246,8 @@ def test_all_pairs():
     save_results_to_pdf(df_results)
 
     return df_results
+
+# --------------- TEST  COMPLET SUR UNE SEULE PAIRE ----------------
 
 def test_single_pair(pair1, pair2):
 
@@ -375,6 +385,8 @@ def test_single_pair(pair1, pair2):
         fold += 1
     print(f"Moyenne accuracy CV : {np.mean(accuracies):.4f}")
 
+# --------------- TEST SUR TOUTS LAES PAIRES AVEC GENERATION DE PDF SEULEMENT (MAIN CALL)----------------
+
 def test_all_pairs_pdf_only(capital=900):
     results = []
     tickers = settings.tickers
@@ -451,6 +463,8 @@ def test_all_pairs_pdf_only(capital=900):
     save_results_to_pdf(df_results)
     return df_results
 
+# --------------- TEST DE LA REGRESSION SUR UNE SEULE FEATURE ----------------
+
 def test_linear_regression_on_spread(X, spread_series):
     from sklearn.linear_model import LinearRegression
     import statsmodels.api as sm
@@ -483,6 +497,8 @@ def test_linear_regression_on_spread(X, spread_series):
     plt.title("QQ-plot des résidus")
     plt.show()
 
+# --------------- TEST HORS ECHANTILLION DE LA REGRESSION ----------------
+
 def test_out_of_sample(pair1, pair2, train_start, train_end, test_start, test_end):
     print(f"\n🔍 Test hors échantillon sur la paire : {pair1} / {pair2}")
     base_currency1 = pair1[:3]
@@ -491,7 +507,7 @@ def test_out_of_sample(pair1, pair2, train_start, train_end, test_start, test_en
     # Télécharger données historiques complètes
     df1, df2, df_commo1, _ = get_all_data(pair1, pair2, commodity1, None)
     if df1.empty or df2.empty:
-        print("❌ Données indisponibles.")
+        print("Données indisponibles.")
         return
 
     # Filtrer train et test par dates sur les closes
@@ -534,11 +550,11 @@ def test_out_of_sample(pair1, pair2, train_start, train_end, test_start, test_en
     # Prédiction et évaluation
     y_pred = model.predict(X_test)
 
-    print("\n📊 Rapport de classification hors échantillon :")
+    print("\nRapport de classification hors échantillon :")
     print(classification_report(y_test, y_pred))
 
     r2 = r2_score(y_test, y_pred)
-    print(f"\n📈 R² hors échantillon : {r2:.4f}")
+    print(f"\n  R² hors échantillon : {r2:.4f}")
 
     acc = accuracy_score(y_test, y_pred)
     print(f"Accuracy hors échantillon : {acc:.4f}")
@@ -548,7 +564,10 @@ def test_out_of_sample(pair1, pair2, train_start, train_end, test_start, test_en
     plt.title("Matrice de confusion hors échantillon")
     plt.show()
 
+# --------------- GESTION DE RISQUE ADAPTATIVE ----------------
+
 def gestion_risque_adaptative(capital, ticker,max_risk=0.02,min_risk=0):
+    
     # Calcul std
     fx_std_data = yf.download(ticker, period="6mo", interval="4h")
     fx_df_std = pd.DataFrame(fx_std_data)
@@ -580,13 +599,9 @@ def gestion_risque_adaptative(capital, ticker,max_risk=0.02,min_risk=0):
     }])
 
     return final_df
+
+# --------------- ZONE D'APPEL DES FONCTION GÉNÉRAL ----------------
+
 if __name__ == "__main__":
-    # Test sur une seule paire (analyse complète avec graphiques, SHAP, résidus, etc.)
-    #test_single_pair("EURUSD=X", "GBPUSD=X")
-    # test_out_of_sample(
-    #     "EURUSD=X", "GBPUSD=X",
-    #     train_start="2018-01-01", train_end="2022-12-31",
-    #     test_start="2023-01-01", test_end="2025-03-30"
-    # )
-    # Test sur toutes les paires avec résumé PDF uniquement
     test_all_pairs_pdf_only()
+    

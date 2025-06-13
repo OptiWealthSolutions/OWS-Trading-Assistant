@@ -8,6 +8,8 @@ from sklearn.preprocessing import StandardScaler
 import ta
 from ta.momentum import RSIIndicator
 from fredapi import Fred
+import warnings
+
 
 def get_all_data(pair_1,pair_2,commodity_1=None,commodity_2=None,period = "20y"):
     data_1 = yf.download(pair_1, period=period, interval="1d", progress=False, auto_adjust=False)
@@ -130,7 +132,7 @@ def get_commo_corr(ticker, period="10y", interval="1d"):
         return pd.DataFrame()
 
     # Données forex (plus robuste et explicite)
-    forex = yf.download(ticker, period=period, interval=interval, auto_adjust=False)
+    forex = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=False)
     if forex.empty or 'Close' not in forex.columns:
         raise ValueError(f"Impossible de récupérer les données de clôture pour le ticker {ticker}")
 
@@ -141,7 +143,7 @@ def get_commo_corr(ticker, period="10y", interval="1d"):
 
     # Données commodities
     for commo in commodities:
-        commo_data = yf.download(commo, period=period, interval=interval, auto_adjust=False)
+        commo_data = yf.download(commo, period=period, interval=interval, progress=False, auto_adjust=False)
         if 'Close' not in commo_data.columns:
             print(f"Pas de 'Close' pour {commo}")
             continue
@@ -231,3 +233,5 @@ def prepare_dataset_signal(spread, zscore, pair1_close, commo_price_1, adx_serie
     y = df['target']
 
     return X, y
+
+warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn.linear_model")
