@@ -4,7 +4,6 @@ tickers = [
     "EURUSD=X",
     "GBPUSD=X",
     "USDJPY=X",
-    "AUDUSD=X",
     "USDCAD=X",
     "USDCHF=X",
     "NZDUSD=X",
@@ -13,9 +12,6 @@ tickers = [
     "EURCHF=X",
     "GBPJPY=X",
     "AUDJPY=X",
-    "CHFJPY=X",
-    "USDMXN=X",
-    "USDZAR=X"
 ]
 
 correlation_matrix = {

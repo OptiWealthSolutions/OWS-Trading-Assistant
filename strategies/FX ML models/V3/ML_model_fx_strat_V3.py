@@ -571,10 +571,10 @@ def gestion_risque_adaptative(capital, ticker,max_risk=0.02,min_risk=0):
 if __name__ == "__main__":
     # Test sur une seule paire (analyse complète avec graphiques, SHAP, résidus, etc.)
     #test_single_pair("EURUSD=X", "GBPUSD=X")
-    test_out_of_sample(
-        "EURUSD=X", "GBPUSD=X",
-        train_start="2018-01-01", train_end="2022-12-31",
-        test_start="2023-01-01", test_end="2025-03-30"
-    )
+    # test_out_of_sample(
+    #     "EURUSD=X", "GBPUSD=X",
+    #     train_start="2018-01-01", train_end="2022-12-31",
+    #     test_start="2023-01-01", test_end="2025-03-30"
+    # )
     # Test sur toutes les paires avec résumé PDF uniquement
-    #test_all_pairs_pdf_only()
+    test_all_pairs_pdf_only()
