@@ -1,4 +1,14 @@
 # --------------- APPEL DE TOUS LES MODULES ET FONCITONS EXTERNES AUX FICHIER ----------------
+
+# Le modèle analyse la relation entre deux paires de devises fortement corrélées (pair trading) et détecte les déviations anormales de leur écart de prix via un z-score.
+
+# Il combine cette information avec des indicateurs techniques (RSI, ADX), des données fondamentales (écart de taux d’intérêt) et la corrélation avec certaines matières premières pour prédire un signal de marché (BUY, SELL, WAIT).
+
+# Le modèle est entraîné avec des techniques de machine learning supervisé (régression logistique multinomiale) pour apprendre à reconnaître les configurations historiques gagnantes.
+
+# Chaque signal est accompagné d’un niveau de confiance probabiliste, et une gestion du risque adaptative ajuste automatiquement la taille de position selon la volatilité et le capital disponible.
+
+# Le résultat est un tableau PDF clair listant les signaux du jour pour chaque paire de devises, la probabilité de succès estimée, et la taille de position recommandée.
 from ta.momentum import RSIIndicator, ROCIndicator, StochasticOscillator
 from ta.trend import ADXIndicator, SMAIndicator, EMAIndicator, MACD
 from ta.volatility import BollingerBands, AverageTrueRange
@@ -604,4 +614,5 @@ def gestion_risque_adaptative(capital, ticker,max_risk=0.02,min_risk=0):
 
 if __name__ == "__main__":
     test_all_pairs_pdf_only()
-    
+
+warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn.linear_model")

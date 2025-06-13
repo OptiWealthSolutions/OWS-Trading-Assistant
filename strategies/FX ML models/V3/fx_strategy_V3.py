@@ -10,7 +10,6 @@ from ta.momentum import RSIIndicator
 from fredapi import Fred
 import warnings
 
-
 def get_all_data(pair_1,pair_2,commodity_1=None,commodity_2=None,period = "20y"):
     data_1 = yf.download(pair_1, period=period, interval="1d", progress=False, auto_adjust=False)
     data_2 = yf.download(pair_2, period=period, interval="1d", progress=False, auto_adjust=False)
@@ -29,7 +28,6 @@ def get_all_data(pair_1,pair_2,commodity_1=None,commodity_2=None,period = "20y")
     data_commodity2 = data_commodity2 if commodity_2 is not None else pd.DataFrame()
     
     return data_1, data_2, data_commodity1, data_commodity2
-
 
 # ==================== PAIR TRADING MODEL ====================
 def test_adf(series: pd.Series):

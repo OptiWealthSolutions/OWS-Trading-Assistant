@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 
 # Télécharger les donnée
 
-eurusd = yf.download("EURUSD=X", period="15y")['Close']
-gold = yf.download("GC=F", period="15y")['Close']
-oil = yf.download("CL=F", period="15y")['Close']
+eurusd = yf.download("EURUSD=X", period="1y")['Close']
+gold = yf.download("GC=F", period="1y")['Close']
+oil = yf.download("CL=F", period="1y")['Close']
 
 eurusd = pd.DataFrame(eurusd)
 eurusd.columns = ['eurusd']
