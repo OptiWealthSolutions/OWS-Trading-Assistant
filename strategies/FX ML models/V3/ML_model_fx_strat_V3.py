@@ -1,3 +1,4 @@
+
 from ta.momentum import RSIIndicator, ROCIndicator, StochasticOscillator
 from ta.trend import ADXIndicator, SMAIndicator, EMAIndicator, MACD
 from ta.volatility import BollingerBands, AverageTrueRange
@@ -17,9 +18,7 @@ import settings
 from xgboost import XGBClassifier
 from sklearn.metrics import ConfusionMatrixDisplay
 from imblearn.over_sampling import SMOTE
-import shap
 from sklearn.model_selection import TimeSeriesSplit
-import shap
 
 def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=None, seuil=1):
     if isinstance(pair1_close, pd.DataFrame):
@@ -84,8 +83,7 @@ def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_d
 
     return X, y
 
-
-def save_results_to_pdf(df_results, filename="ml_signals_report.pdf"):
+def save_results_to_pdf(df_results, filename="ml_signals_report_V3.pdf"):
     fig, ax = plt.subplots(figsize=(12, len(df_results)*0.5 + 1))
     ax.axis('off')
 
@@ -125,7 +123,6 @@ def save_results_to_pdf(df_results, filename="ml_signals_report.pdf"):
     plt.savefig(filename)
     print(f"Report saved as {filename}")
     plt.close()
-
 
 def test_all_pairs():
     results = []
@@ -230,7 +227,6 @@ def test_all_pairs():
 
     return df_results
 
-
 def test_single_pair(pair1, pair2):
 
     print(f"\n🔍 Test du modèle sur la paire : {pair1} / {pair2}")
@@ -272,7 +268,20 @@ def test_single_pair(pair1, pair2):
     model.fit(X_train, y_train)  # <-- Important : entraînement du modèle
 
     y_pred = model.predict(X_test)
+    probas = model.predict_proba(X_test)  # <-- must be computed before using
+    residuals_proba = []
+    for i in range(len(y_test)):
+        pred_proba = probas[i, y_pred[i]]
+        if y_pred[i] == y_test.iloc[i]:
+            residuals_proba.append(pred_proba - 1)
+        else:
+            residuals_proba.append(pred_proba)
 
+    plt.hist(residuals_proba, bins=30, color='skyblue')
+    plt.title("Distribution des résidus de probabilité")
+    plt.xlabel("Erreur (proba prédite - vérité)")
+    plt.grid(True)
+    plt.show()
     # Résumé prédiction finale sur test set
     results = []
     for idx in range(len(y_test)):
@@ -295,6 +304,9 @@ def test_single_pair(pair1, pair2):
 
     print("\n📊 Rapport de classification :")
     print(classification_report(y_test, y_pred))
+    from sklearn.metrics import r2_score
+    r2 = r2_score(y_test, y_pred)
+    print(f"\n📈 R² score : {r2:.4f}")
 
     print("\n🧮 Matrice de confusion :")
     disp = ConfusionMatrixDisplay.from_estimator(model, X_test, y_test)
@@ -322,11 +334,16 @@ def test_single_pair(pair1, pair2):
     plt.grid(True)
     plt.show()
 
-    print("\n📈 Explications SHAP :")
-    explainer = shap.Explainer(model.named_steps['logisticregression'], X_train, feature_names=X.columns)
-    shap_values = explainer(X_test)
-
-    shap.summary_plot(shap_values, X_test, plot_type="bar", show=True)
+    print("\n📊 Analyse simple : Proba BUY vs chaque variable explicative")
+    for col in X_test.columns:
+        plt.figure(figsize=(6, 3))
+        plt.scatter(X_test[col], probas[:, 2], alpha=0.5)
+        plt.title(f"Proba BUY vs {col}")
+        plt.xlabel(col)
+        plt.ylabel("Proba BUY")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
     # Sauvegarde résultats dans PDF
     save_results_to_pdf(df_results)
 
@@ -346,8 +363,7 @@ def test_single_pair(pair1, pair2):
         fold += 1
     print(f"Moyenne accuracy CV : {np.mean(accuracies):.4f}")
 
-
-def test_all_pairs_pdf_only():
+def test_all_pairs_pdf_only(capital=900):
     results = []
     tickers = settings.tickers
     macro_data = get_macro_data_fred()
@@ -360,7 +376,6 @@ def test_all_pairs_pdf_only():
         commodity2 = None
 
         df1, df2, df_commo1, df_commo2 = get_all_data(pair1, pair2, commodity1, commodity2)
-
         if df1.empty or df2.empty:
             continue
 
@@ -374,7 +389,6 @@ def test_all_pairs_pdf_only():
         adx = adx_series.reindex(spread.index).bfill()
 
         X, y = prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=macro_data)
-
         if X.empty or y.empty or len(X) < 2:
             continue
 
@@ -401,18 +415,166 @@ def test_all_pairs_pdf_only():
         else:
             signal = 'WAIT'
 
+        # Gestion du risque adaptative selon volatilité et capital
+        risk_df = gestion_risque_adaptative(capital, pair1)
+        risk_percent = risk_df['Risk %'].iloc[0]
+        risk_amount = risk_df['Risk €'].iloc[0]
+
         results.append({
             'pair1': pair1,
             'pair2': pair2,
             'predicted_class': y_pred_class,
-            'confidence': confidence,
-            'signal': signal
+            'confidence': round(confidence, 4),
+            'signal': signal,
+            'risk_percent': risk_percent,
+            'risk_amount': risk_amount
         })
 
     df_results = pd.DataFrame(results)
+    # Ensure risk columns are present and in the DataFrame
+    if not df_results.empty:
+        # Optional: order columns for PDF clarity
+        cols = ['pair1', 'pair2', 'predicted_class', 'confidence', 'signal', 'risk_percent', 'risk_amount']
+        df_results = df_results[cols]
     save_results_to_pdf(df_results)
     return df_results
 
+def test_linear_regression_on_spread(X, spread_series):
+    from sklearn.linear_model import LinearRegression
+    import statsmodels.api as sm
+    from scipy.stats import shapiro
+    import matplotlib.pyplot as plt
+
+    model = LinearRegression()
+    model.fit(X, spread_series.loc[X.index])
+    preds = model.predict(X)
+    residuals = spread_series.loc[X.index] - preds
+
+    print("R²:", model.score(X, spread_series.loc[X.index]))
+
+    stat, p_value = shapiro(residuals)
+    print("Shapiro-Wilk test p-value:", p_value)
+    if p_value > 0.05:
+        print("✅ Les résidus sont normalement distribués")
+    else:
+        print("❌ Les résidus ne sont PAS normalement distribués")
+
+    plt.scatter(preds, residuals, alpha=0.5)
+    plt.axhline(0, color='red', linestyle='--')
+    plt.title("Résidus vs Prédictions (homoscédasticité)")
+    plt.xlabel("Prédictions")
+    plt.ylabel("Résidus")
+    plt.grid(True)
+    plt.show()
+
+    sm.qqplot(residuals, line='s')
+    plt.title("QQ-plot des résidus")
+    plt.show()
+
+def test_out_of_sample(pair1, pair2, train_start, train_end, test_start, test_end):
+    print(f"\n🔍 Test hors échantillon sur la paire : {pair1} / {pair2}")
+    base_currency1 = pair1[:3]
+    commodity1 = settings.commodity_mapping.get(base_currency1, None)
+
+    # Télécharger données historiques complètes
+    df1, df2, df_commo1, _ = get_all_data(pair1, pair2, commodity1, None)
+    if df1.empty or df2.empty:
+        print("❌ Données indisponibles.")
+        return
+
+    # Filtrer train et test par dates sur les closes
+    df1_train = df1[(df1.index >= train_start) & (df1.index <= train_end)]
+    df2_train = df2[(df2.index >= train_start) & (df2.index <= train_end)]
+    df1_test = df1[(df1.index >= test_start) & (df1.index <= test_end)]
+    df2_test = df2[(df2.index >= test_start) & (df2.index <= test_end)]
+
+    # Calcul spread & zscore train
+    spread_train, _, _, _ = engle_granger_test(df1_train[f"{pair1}_Close"], df2_train[f"{pair2}_Close"])
+    zscore_train = (spread_train - spread_train.mean()) / spread_train.std()
+    pair1_close_train = df1_train[f"{pair1}_Close"]
+    gold_price_train = df_commo1[f"{commodity1}_Close"] if (commodity1 and not df_commo1.empty) else pair1_close_train
+    adx_train = calculate_adx(pair1).reindex(spread_train.index).bfill()
+
+    # Préparation train
+    X_train, y_train = prepare_dataset_signal(spread_train, zscore_train, pair1_close_train, gold_price_train, adx_train)
+
+    # Calcul spread & zscore test
+    spread_test, _, _, _ = engle_granger_test(df1_test[f"{pair1}_Close"], df2_test[f"{pair2}_Close"])
+    zscore_test = (spread_test - spread_test.mean()) / spread_test.std()
+    pair1_close_test = df1_test[f"{pair1}_Close"]
+    gold_price_test = df_commo1[f"{commodity1}_Close"] if (commodity1 and not df_commo1.empty) else pair1_close_test
+    adx_test = calculate_adx(pair1).reindex(spread_test.index).bfill()
+
+    # Préparation test
+    X_test, y_test = prepare_dataset_signal(spread_test, zscore_test, pair1_close_test, gold_price_test, adx_test)
+
+    # SMOTE uniquement sur train
+    smote = SMOTE(random_state=42)
+    X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
+
+    # Modèle
+    model = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(multi_class='multinomial', max_iter=10000, solver='lbfgs', class_weight='balanced')
+    )
+    model.fit(X_train_res, y_train_res)
+
+    # Prédiction et évaluation
+    y_pred = model.predict(X_test)
+
+    print("\n📊 Rapport de classification hors échantillon :")
+    print(classification_report(y_test, y_pred))
+
+    r2 = r2_score(y_test, y_pred)
+    print(f"\n📈 R² hors échantillon : {r2:.4f}")
+
+    acc = accuracy_score(y_test, y_pred)
+    print(f"Accuracy hors échantillon : {acc:.4f}")
+
+    # Matrice de confusion
+    disp = ConfusionMatrixDisplay.from_estimator(model, X_test, y_test)
+    plt.title("Matrice de confusion hors échantillon")
+    plt.show()
+
+def gestion_risque_adaptative(capital, ticker,max_risk=0.02,min_risk=0):
+    # Calcul std
+    fx_std_data = yf.download(ticker, period="6mo", interval="4h")
+    fx_df_std = pd.DataFrame(fx_std_data)
+    fx_df_std['Log Returns'] = np.log(fx_df_std['Close'] / fx_df_std['Close'].shift(1))
+    fx_df_std['STD'] = fx_df_std['Log Returns'].std()
+    current_std = fx_df_std['STD'].iloc[-1]
+
+    # Calcul vol
+    fx_vol_data_brut = yf.download(ticker, period="6mo", interval="4h")
+    fx_df_vol = pd.DataFrame(fx_vol_data_brut)
+    fx_df_vol['Log Returns'] = np.log(fx_df_vol['Close'] / fx_df_vol['Close'].shift(1))
+    fx_df_vol['Volatility_20D'] = fx_df_vol['Log Returns'].rolling(window=20).std(ddof=0) * 100
+    fx_df_vol.dropna(inplace=True)
+    current_vol = fx_df_vol['Volatility_20D'].iloc[-1]
+
+    # Calcul du score risque
+    poids_vol = 0.5
+    poids_std = 0.5
+    score_risque = current_std * poids_std + current_vol * poids_vol 
+    risque_pct = max(min_risk, max_risk * (1 - score_risque))
+    risque_pct = float(round(risque_pct * 100, 2))
+    risk_amount = round(capital * (risque_pct / 100), 2)
+
+    final_df = pd.DataFrame([{
+        'Vol %': round(current_vol, 4) * 100,
+        'Std %': round(current_std, 4) * 100,
+        'Risk €': risk_amount,
+        'Risk %': risque_pct
+    }])
+
+    return final_df
 if __name__ == "__main__":
-    test_all_pairs_pdf_only()
-    pass
+    # Test sur une seule paire (analyse complète avec graphiques, SHAP, résidus, etc.)
+    #test_single_pair("EURUSD=X", "GBPUSD=X")
+    test_out_of_sample(
+        "EURUSD=X", "GBPUSD=X",
+        train_start="2018-01-01", train_end="2022-12-31",
+        test_start="2023-01-01", test_end="2025-03-30"
+    )
+    # Test sur toutes les paires avec résumé PDF uniquement
+    #test_all_pairs_pdf_only()
