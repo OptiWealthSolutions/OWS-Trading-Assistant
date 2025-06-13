@@ -579,7 +579,7 @@ def test_out_of_sample(pair1, pair2, train_start, train_end, test_start, test_en
 def gestion_risque_adaptative(capital, ticker,max_risk=0.02,min_risk=0):
     
     # Calcul std
-    fx_std_data = yf.download(ticker, period="6mo", interval="4h")
+    fx_std_data = yf.download(ticker, period="6mo", interval="4h", progress=False)
     fx_df_std = pd.DataFrame(fx_std_data)
     fx_df_std['Log Returns'] = np.log(fx_df_std['Close'] / fx_df_std['Close'].shift(1))
     fx_df_std['STD'] = fx_df_std['Log Returns'].std()
