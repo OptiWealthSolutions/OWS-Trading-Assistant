@@ -26,7 +26,7 @@ def tune_xgb_hyperparams(X, y):
             'min_child_weight': trial.suggest_int('min_child_weight', 1, 10),
             'scale_pos_weight': trial.suggest_float('scale_pos_weight', 1.0, 10.0)
         }
-        model = make_pipeline(StandardScaler(), XGBClassifier(use_label_encoder=False, eval_metric='mlogloss', random_state=42, **params))
+        model = make_pipeline(StandardScaler(), XGBClassifier(eval_metric='mlogloss', random_state=42, **params))
         score = cross_val_score(model, X, y, cv=3, scoring='accuracy').mean()
         return score
 
@@ -88,7 +88,7 @@ if st.button("Lancer le backtest"):
             y = y.loc[X.index]
             mask = X.notnull().all(axis=1) & ~np.isinf(X).any(axis=1)
             X_clean, y_clean = X[mask], y[mask]
-            st.write(f"Distribution des classes pour {pair1} - {dur_label} :", y_clean.value_counts())
+            # st.write(f"Distribution des classes pour {pair1} - {dur_label} :", y_clean.value_counts())
             if len(y_clean.unique()) < 2:
                 st.warning(f"Pas assez de classes différentes pour {pair1} sur {dur_label}")
                 continue
@@ -98,9 +98,9 @@ if st.button("Lancer le backtest"):
             except Exception as e:
                 st.error(f"SMOTE erreur sur {pair1} {dur_label} : {e}")
                 continue
-            st.write(f"Optimisation des hyperparamètres pour {pair1} ...")
+            # st.write(f"Optimisation des hyperparamètres pour {pair1} ...")
             best_params = tune_xgb_hyperparams(X_res, y_res)
-            model = make_pipeline(StandardScaler(), XGBClassifier(use_label_encoder=False, eval_metric='mlogloss', random_state=42, **best_params))
+            model = make_pipeline(StandardScaler(), XGBClassifier(eval_metric='mlogloss', random_state=42, **best_params))
             model.fit(X_res, y_res)
             y_proba = model.predict_proba(X)
             proba_buy = y_proba[:, 2]
@@ -155,8 +155,13 @@ if st.button("Lancer le backtest"):
         portfolio_log = []
         # 4. Boucle sur chaque timestamp commun
         for t in common_index[1:]:
-            signals = {pair: int(pair_data[pair].at[t, "Signal"]) for pair in pair_data.keys() if t in pair_data[pair].index}
-            prices = {pair: float(pair_data[pair].at[t, "Price"]) for pair in pair_data.keys() if t in pair_data[pair].index}
+            signals = {}
+            prices = {}
+            for pair in pair_data.keys():
+                df_pair = pair_data[pair]
+                if t in df_pair.index and "Signal" in df_pair.columns and "Price" in df_pair.columns:
+                    signals[pair] = int(df_pair.at[t, "Signal"])
+                    prices[pair] = float(df_pair.at[t, "Price"])
             # 4a. Fermer les positions si TP/SL/time
             closed_pairs = []
             for pair, pos in open_positions.items():
@@ -265,6 +270,8 @@ if st.button("Lancer le backtest"):
         portefeuille = portefeuille[portefeuille['Pair'] == 'Portfolio']
         portefeuille = portefeuille.drop_duplicates(subset=["Time"], keep='last')
         portefeuille = portefeuille.set_index("Time")
+        # Supprimer les colonnes inutiles/redondantes
+        portefeuille = portefeuille[["Capital"]]
         # 6. Calcul des métriques
         returns = portefeuille["Capital"].pct_change().dropna()
         sharpe = np.sqrt(252)*returns.mean()/returns.std() if returns.std() > 0 else 0
@@ -273,6 +280,11 @@ if st.button("Lancer le backtest"):
         max_drawdown = max(1 - portefeuille['Capital'] / portefeuille['Capital'].cummax()) * 100
         st.header(f"Backtest Multi-paires (capital partagé) - Durée : {dur_label}")
         st.line_chart(portefeuille["Capital"])
+        # Ajout du graphique de drawdown
+        portefeuille["Peak"] = portefeuille["Capital"].cummax()
+        portefeuille["Drawdown (%)"] = 100 * (portefeuille["Capital"] - portefeuille["Peak"]) / portefeuille["Peak"]
+        st.subheader("Drawdown (%) dans le temps")
+        st.line_chart(portefeuille["Drawdown (%)"])
         col1, col2, col3 = st.columns(3)
         col1.metric("PnL (€)", f"{pnl_eur:.2f} €")
         col2.metric("PnL (%)", f"{pnl_pct:.2f} %")
