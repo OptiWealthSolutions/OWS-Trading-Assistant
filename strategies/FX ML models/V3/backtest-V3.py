@@ -99,10 +99,10 @@ if st.button("Lancer le backtest"):
             df["Capital"] = capital
             df["Capital"] = df["Capital"].astype(float)
 
-            rr = 4
+            rr = 2
             pip_value = 0.0001
-            commission = 2.5
-            spread_pips = 1.5
+            commission = 1
+            spread_pips = 1
             slippage_pips = 0.5
 
             capital_current = capital
@@ -292,13 +292,17 @@ if st.button("Lancer le backtest"):
 
             st.header(f"Backtest {pair1} - Durée : {dur_label}")
             st.line_chart(df["Capital"])
-            st.markdown(f"**PnL (€) :** {pnl_eur:.2f} €")
-            st.markdown(f"**PnL (%) :** {pnl_pct:.2f} %")
-            st.markdown(f"**Sharpe Ratio :** {sharpe:.2f}")
-            st.markdown(f"**Nombre de trades :** {nb_trades}")
-            st.markdown(f"**Winrate (%) :** {winrate:.2f} %")
-            st.markdown(f"**Max Drawdown (%) :** {max_drawdown:.2f} %")
-            st.markdown(f"**Espérance de gain par trade :** {expectancy:.2f} €")
+            col1, col2, col3 = st.columns(3)
+            col1.metric("PnL (€)", f"{pnl_eur:.2f} €")
+            col2.metric("PnL (%)", f"{pnl_pct:.2f} %")
+            col3.metric("Sharpe Ratio", f"{sharpe:.2f}")
+
+            col4, col5, col6 = st.columns(3)
+            col4.metric("Trades", f"{nb_trades}")
+            col5.metric("Winrate (%)", f"{winrate:.2f} %")
+            col6.metric("Drawdown Max (%)", f"{max_drawdown:.2f} %")
+
+            st.metric("Espérance de gain par trade", f"{expectancy:.2f} €")
 
             st.subheader("Journal de trading détaillé")
             st.dataframe(trades_df)
