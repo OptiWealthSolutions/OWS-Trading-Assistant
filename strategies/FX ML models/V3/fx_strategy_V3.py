@@ -10,7 +10,7 @@ from ta.momentum import RSIIndicator
 from fredapi import Fred
 import warnings
 
-def get_all_data(pair_1,pair_2,commodity_1=None,commodity_2=None,period = "5y"):
+def get_all_data(pair_1,pair_2,commodity_1=None,commodity_2=None,period = "10y"):
     data_1 = yf.download(pair_1, period=period, interval="1d", progress=False, auto_adjust=False)
     data_2 = yf.download(pair_2, period=period, interval="1d", progress=False, auto_adjust=False)
     data_1.rename(columns={"Close": f"{pair_1}_Close"}, inplace=True)
