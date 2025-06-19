@@ -21,9 +21,12 @@ from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import yfinance as yf
 from fx_strategy_V3 import *
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 import settings
 from xgboost import XGBClassifier
 from sklearn.metrics import ConfusionMatrixDisplay
@@ -429,16 +432,16 @@ def test_all_pairs_pdf_only(capital=900):
         smote = SMOTE(random_state=42)
         X_resampled, y_resampled = smote.fit_resample(X, y)
 
-        model = make_pipeline(
-            StandardScaler(),
-            LogisticRegression(multi_class='multinomial', max_iter=10000, solver='lbfgs', class_weight='balanced')
-        )
+        model = Pipeline([
+            ('scaler', StandardScaler()),
+            ('randomforestclassifier', RandomForestClassifier())
+        ])
         model.fit(X_resampled, y_resampled)
 
-        X_pred = X.iloc[-1:].values
+        X_pred = X.iloc[[-1]]  # reste un DataFrame avec les noms de colonnes
         y_pred_class = model.predict(X_pred)[0]
         y_proba = model.predict_proba(X_pred)[0]
-        classes = model.named_steps['logisticregression'].classes_
+        classes = model.named_steps['randomforestclassifier'].classes_
         class_index = np.where(classes == y_pred_class)[0][0]
         confidence = y_proba[class_index]
 
