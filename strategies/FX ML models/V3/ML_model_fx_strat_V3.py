@@ -36,7 +36,7 @@ from reportlab.pdfgen import canvas
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import warnings
-
+from settings import *
 # Configuration de la police Menlo
 menlo_path = '/System/Library/Fonts/Menlo.ttc'  # Chemin système macOS pour la police Menlo
 menlo_prop = fm.FontProperties(fname=menlo_path)
