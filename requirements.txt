@@ -11,3 +11,8 @@ scipy.stats
 scipy.signal
 scipy.optimize
 linalgo
+ta
+xgboost
+imblearn
+reportlab
+fpdf
