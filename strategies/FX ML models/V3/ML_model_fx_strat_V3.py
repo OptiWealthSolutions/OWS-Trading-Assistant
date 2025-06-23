@@ -20,7 +20,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import yfinance as yf
-from fx_strategy_V3 import get_interest_rate_difference
+from fx_strategy_V3 import get_interest_rate_difference, get_macro_data_fred, get_all_data, calculate_adx
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
 from sklearn.linear_model import LogisticRegression
@@ -36,7 +36,10 @@ from reportlab.pdfgen import canvas
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import warnings
-from settings import *
+import sys
+sys.path.append('../')  # Add parent directory to path
+from settings import tickers, commodity_mapping
+
 # Configuration de la police Menlo
 menlo_path = '/System/Library/Fonts/Menlo.ttc'  # Chemin système macOS pour la police Menlo
 menlo_prop = fm.FontProperties(fname=menlo_path)
