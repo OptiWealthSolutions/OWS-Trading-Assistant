@@ -20,45 +20,47 @@ from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import yfinance as yf
-from fx_strategy_V3 import *
+from fx_strategy_V3 import get_interest_rate_difference
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-import settings
 from xgboost import XGBClassifier
 from sklearn.metrics import ConfusionMatrixDisplay
 from imblearn.over_sampling import SMOTE
-from sklearn.model_selection import TimeSeriesSplit
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 import matplotlib.font_manager as fm
-import warnings
-# Set up Menlo font for matplotlib
-menlo_path = '/System/Library/Fonts/Menlo.ttc'  # macOS system path for Menlo font
-menlo_prop = fm.FontProperties(fname=menlo_path)
 import matplotlib.pyplot as plt
+import warnings
+
+# Configuration de la police Menlo
+menlo_path = '/System/Library/Fonts/Menlo.ttc'  # Chemin système macOS pour la police Menlo
+menlo_prop = fm.FontProperties(fname=menlo_path)
 plt.rcParams['font.family'] = menlo_prop.get_name()
+
+warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn.linear_model")
 
 warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn.linear_model")
 # --------------- PREPARE DATA SET FONCTION ----------------
 
 def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=None, seuil=1):
+    # Vérification et préparation des données
     if isinstance(pair1_close, pd.DataFrame):
         pair1_close = pair1_close.iloc[:, 0]
     if isinstance(gold_price, pd.DataFrame):
         gold_price = gold_price.iloc[:, 0]
-        
-    #liste des indicateurs calculés dans "fx_strategy_V3;py"
+    
+    # Alignement des indices
     pair1_close = pair1_close.reindex(spread.index)
     gold_price = gold_price.reindex(spread.index)
     zscore = zscore.reindex(spread.index)
     adx = adx.reindex(spread.index)
     
-    #liste des indicateurs techniques utilisés dans la regression logistique mutlinomiale
+    # Calcul des indicateurs techniques
     rsi_pair1 = RSIIndicator(close=pair1_close, window=14).rsi()
     sma_20 = SMAIndicator(close=pair1_close, window=20).sma_indicator()
     ema_20 = EMAIndicator(close=pair1_close, window=20).ema_indicator()
@@ -68,9 +70,11 @@ def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_d
     bb_bbl = bb_bands.bollinger_lband()
     roc = ROCIndicator(close=pair1_close, window=12).roc()
     atr = AverageTrueRange(high=pair1_close, low=pair1_close, close=pair1_close).average_true_range()
-    #indicateur macro utilisé dans la regression multinomiale
+    
+    # Récupération de l'écart de taux d'intérêt
     rate_diff = get_interest_rate_difference(pair1_close.name if hasattr(pair1_close, 'name') else "")
 
+    # Création du DataFrame avec toutes les features
     df = pd.DataFrame({
         'spread': spread,
         'z_score': zscore,
@@ -85,18 +89,19 @@ def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_d
         'bb_low': bb_bbl,
         'roc': roc,
         'atr': atr,
-        'rate_diff': get_interest_rate_difference(pair1_close.name if hasattr(pair1_close, 'name') else "")
+        'rate_diff': rate_diff
     })
 
+    # Ajout des données macro si disponibles
     if macro_data is not None:
-        # Merge macro data on index (dates), align on dates
         macro_data_reindexed = macro_data.reindex(df.index).ffill().bfill()
         df = pd.concat([df, macro_data_reindexed], axis=1)
 
-    df.dropna(inplace=True)
+    # Nettoyage des données
+    df = df.dropna()
     df = df.astype(float)
 
-    # Nouvelle étiquette : -1 → 0 (SELL), 0 → 1 (WAIT), 1 → 2 (BUY)
+    # Définition des targets
     df['target'] = 1  # WAIT par défaut
     df.loc[df['z_score'] > seuil, 'target'] = 0  # SELL
     df.loc[df['z_score'] < -seuil, 'target'] = 2  # BUY
@@ -188,7 +193,7 @@ def test_all_pairs_pdf_only(capital=900):
         if X.empty or y.empty or len(X) < 2:
             continue
 
-        smote = SMOTE(random_state=42)
+        smote = SMOTE(random_state=42, sampling_strategy='auto')
         X_resampled, y_resampled = smote.fit_resample(X, y)
 
         model = Pipeline([
