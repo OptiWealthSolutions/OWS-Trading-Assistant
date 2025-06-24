@@ -35,49 +35,47 @@ def calculate_real_rate_diff(pair):
     quote = pair[3:6].upper()
     return rates[base] - rates[quote]
 
-def calculate_oi_change(data, window=14):
-    """Calcule le changement de l'Open Interest"""
-    data['oi_change'] = data['Open'].rolling(window=window).std()
-    return data['oi_change']
+# def calculate_oi_change(data):
+#     """Calcule le changement de l'Open Interest"""
+#     # Utilisation d'un calcul simple de la volatilité
+#     data['oi_change'] = data['Open'].std()
+#     return data['oi_change']
 
-def calculate_entropy(data, window=14):
+def calculate_entropy(data):
     """Calcule l'entropie des prix"""
-    entropy_values = []
-    for i in range(len(data)):
-        if i < window:
-            entropy_values.append(np.nan)
-        else:
-            prices = data['Close'].iloc[i-window:i]
-            hist, _ = np.histogram(prices, bins='auto', density=True)
-            entropy_values.append(entropy(hist))
-    return pd.Series(entropy_values, index=data.index)
+    # Utilisation de l'entropie des rendements
+    returns = data['Close'].pct_change()
+    hist, _ = np.histogram(returns.dropna(), bins='auto', density=True)
+    return entropy(hist, base=2)
 
-def calculate_skew(data, window=14):
+def calculate_skew(data):
     """Calcule le skew des rendements"""
     returns = data['Close'].pct_change()
-    return returns.rolling(window=window).skew()
+    return returns.skew()
 
 def calculate_macro_regime(data, pair):
     """Calcule le régime macroéconomique basé sur les taux d'intérêt"""
-    fred = Fred()
-    try:
-        # Récupérer les taux d'intérêt des deux pays
-        base = pair[:3].upper()
-        quote = pair[3:6].upper()
-        
-        if base == 'USD':
-            us_rates = fred.get_series('FEDFUNDS')
-        else:
-            us_rates = pd.Series([0])
-        
-        if quote == 'USD':
-            us_rates = pd.Series([0])
-        
-        # Simplification : utilisation des taux US comme proxy
-        data['macro_regime'] = us_rates.pct_change().rolling(window=14).mean()
-    except:
-        data['macro_regime'] = pd.Series([0], index=data.index)
+    # Utilisation d'un indicateur simple basé sur les rendements
+    returns = data['Close'].pct_change()
+    data['macro_regime'] = returns.rolling(window=20).mean()
     return data['macro_regime']
+
+def calculate_coint_stability(data, window=14):
+    """Calcule la stabilité de la cointégration sur une fenêtre glissante"""
+    stability_values = []
+    for i in range(len(data)):
+        if i < window:
+            stability_values.append(np.nan)
+        else:
+            # Calcul des rendements sur la fenêtre
+            returns = data['Close'].iloc[i-window:i].pct_change().dropna()
+            # Calcul de la variance des rendements
+            var = returns.var()
+            # Plus la variance est faible, plus la cointégration est stable
+            stability = 1 / (var + 1e-10)  # Ajout d'une constante pour éviter la division par zéro
+            stability_values.append(stability)
+    
+    return pd.Series(stability_values, index=data.index)
 
 def calculate_engle_granger_pval(data, pair):
     """Calcule la p-value du test Engle-Granger"""
@@ -115,7 +113,7 @@ def test_individual_feature(ticker_target, feature_name, feature_func):
     if feature_name == 'real_rate_diff':
         data[feature_name] = calculate_real_rate_diff(ticker_target)
     else:
-        data[feature_name] = feature_func(data, ticker_target)
+        data[feature_name] = feature_func(data)
     
     # Calcul des rendements
     data['returns_target'] = data['Close'].pct_change()
@@ -161,7 +159,7 @@ def features_testing(ticker_target):
     # Liste des features à tester
     features_list = [
         ('real_rate_diff', calculate_real_rate_diff),
-        ('oi_change', calculate_oi_change),
+        #   ('oi_change', calculate_oi_change),
         ('entropie_prix', calculate_entropy),
         ('skew_returns_14', calculate_skew),
         ('macro_regime', calculate_macro_regime),
@@ -186,7 +184,7 @@ def features_testing(ticker_target):
         if feature_name == 'real_rate_diff':
             data[feature_name] = calculate_real_rate_diff(ticker_target)
         else:
-            data[feature_name] = feature_func(data, ticker_target)
+            data[feature_name] = feature_func(data)
     
     # Calcul des rendements
     data['returns_target'] = data['Close'].pct_change()
@@ -261,7 +259,92 @@ def features_testing(ticker_target):
     
     return model, data
 
+def features_macro_testing(ticker_target):
+    """
+    Teste les features macroéconomiques pour un ticker donné.
+    Features testées :
+    - real_rate_diff : Écart de taux d'intérêt réels
+    - macro_regime : Régime macroéconomique basé sur les taux d'intérêt
+    - sentiment_boj : Sentiment de la Banque du Japon (pour USD/JPY)
+    - coint_stability : Stabilité de la cointégration
+    - engle_granger_pval : P-value du test Engle-Granger
+    """
+    print(f"\nAnalyse macroéconomique de {ticker_target}")
+    
+    # Liste des features macroéconomiques à tester
+    features_list = [
+        ('real_rate_diff', calculate_real_rate_diff),
+        ('macro_regime', calculate_macro_regime),
+        ('coint_stability', calculate_coint_stability),
+        ('engle_granger_pval', calculate_engle_granger_pval)
+    ]
+    
+    # Test individuel de chaque feature
+    individual_scores = {}
+    for feature_name, feature_func in features_list:
+        print(f"\nTest de {feature_name}")
+        score = test_individual_feature(ticker_target, feature_name, feature_func)
+        individual_scores[feature_name] = score
+    
+    # Test combiné des features macroéconomiques
+    print("\nTest combiné des features macroéconomiques")
+    data = yf.download(ticker_target, start="2010-01-01", end="2023-06-23")
+    data = data.dropna()
+    
+    # Calcul des features macroéconomiques
+    for feature_name, feature_func in features_list:
+        if feature_name == 'real_rate_diff':
+            data[feature_name] = calculate_real_rate_diff(ticker_target)
+        else:
+            data[feature_name] = feature_func(data)
+    
+    # Calcul des rendements
+    data['returns_target'] = data['Close'].pct_change()
+    data = data.dropna()
+    
+    # Préparation des données
+    features = data[[feat[0] for feat in features_list]]
+    target = data['returns_target']
+    
+    # Séparation train/test
+    train_size = int(len(features) * 0.8)
+    X_train, X_test = features[:train_size], features[train_size:]
+    y_train, y_test = target[:train_size], target[train_size:]
+    
+    # Entraînement du modèle
+    model = RandomForestRegressor(n_estimators=1000)
+    model.fit(X_train, y_train)
+    
+    # Prédiction et évaluation
+    y_pred = model.predict(X_test)
+    r2 = model.score(X_test, y_test)
+    
+    # Création du graphique
+    plt.figure(figsize=(12, 6))
+    plt.plot(y_test.index, y_test, label='Valeurs réelles', color='blue')
+    plt.plot(y_test.index, y_pred, label='Valeurs prédites', color='red', linestyle='--')
+    plt.title(f'Performance des features macroéconomiques pour {ticker_target}\nR² = {r2:.4f}')
+    plt.xlabel('Date')
+    plt.ylabel('Rendements')
+    plt.legend()
+    plt.show()
+    
+    print(f"\nStatistiques du modèle macroéconomique:")
+    print(f"R² du modèle: {r2:.4f}")
+    print("\nImportance des features:")
+    for feature, importance in zip(features.columns, model.feature_importances_):
+        print(f"{feature}: {importance:.4f}")
+    
+    return model, data, individual_scores
+
 if __name__ == "__main__":
-    # Analyser USD/JPY en utilisant les données de l'or comme features
-    print("\nAnalyse de USD/JPY avec features de l'or")
+    # Analyser USD/JPY avec différentes features
     model, data = features_testing('USDJPY=X')
+    
+    # Analyser USD/JPY avec features macroéconomiques
+    model_macro, data_macro, scores_macro = features_macro_testing('USDJPY=X')
+    
+    # Affichage des scores individuels
+    print("\nScores individuels des features macroéconomiques:")
+    for feature, score in sorted(scores_macro.items(), key=lambda x: x[1], reverse=True):
+        print(f"{feature}: {score:.4f}")
