@@ -8,5 +8,4 @@ from sklearn.linear_model import LinearRegression
 df_gold = yf.download('GC=F', start='2010-01-01', end='2025-10-01')[['Close']].rename(columns={'Close': 'Gold'})
 df_usdjpy = yf.download("USDJPY=X", start='2010-01-01', end='2025-10-01')[['Close']].rename(columns={'Close': 'USDJPY'})
 
-df = df_gold.merge(df_usdjpy)
-print(df)
+print(df_gold)

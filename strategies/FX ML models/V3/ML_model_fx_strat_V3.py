@@ -1,102 +1,208 @@
-# --------------- APPEL DE TOUS LES MODULES ET FONCITONS EXTERNES AUX FICHIER ----------------
+# --------------- APPEL DE TOUS LES MODULES ET FONCTIONS EXTERNES AUX FICHIER ----------------
 
 # Le modèle analyse la relation entre deux paires de devises fortement corrélées (pair trading) et détecte les déviations anormales de leur écart de prix via un z-score.
 
-# Il combine cette information avec des indicateurs techniques (RSI, ADX), des données fondamentales (écart de taux d’intérêt) et la corrélation avec certaines matières premières pour prédire un signal de marché (BUY, SELL, WAIT).
+# Il combine cette information avec des indicateurs techniques (RSI, ADX), des données fondamentales (écart de taux d'intérêt) et la corrélation avec certaines matières premières pour prédire un signal de marché (BUY, SELL, WAIT).
 
 # Le modèle est entraîné avec des techniques de machine learning supervisé (régression logistique multinomiale) pour apprendre à reconnaître les configurations historiques gagnantes.
 
-# Chaque signal est accompagné d’un niveau de confiance probabiliste, et une gestion du risque adaptative ajuste automatiquement la taille de position selon la volatilité et le capital disponible.
+# Chaque signal est accompagné d'un niveau de confiance probabiliste, et une gestion du risque adaptative ajuste automatiquement la taille de position selon la volatilité et le capital disponible.
 
 # Le résultat est un tableau PDF clair listant les signaux du jour pour chaque paire de devises, la probabilité de succès estimée, et la taille de position recommandée.
-from ta.momentum import RSIIndicator, ROCIndicator, StochasticOscillator
-from ta.trend import ADXIndicator, SMAIndicator, EMAIndicator, MACD
-from ta.volatility import BollingerBands, AverageTrueRange
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures
-from sklearn.linear_model import LinearRegression, SGDRegressor
-from sklearn.pipeline import make_pipeline
-from sklearn.metrics import mean_squared_error, r2_score
-import matplotlib.pyplot as plt
-import yfinance as yf
-from fx_strategy_V3 import *
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, TimeSeriesSplit
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-import settings
-from xgboost import XGBClassifier
-from sklearn.metrics import ConfusionMatrixDisplay
-from imblearn.over_sampling import SMOTE
-from sklearn.model_selection import TimeSeriesSplit
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfgen import canvas
-import matplotlib.font_manager as fm
-import warnings
-# Set up Menlo font for matplotlib
-menlo_path = '/System/Library/Fonts/Menlo.ttc'  # macOS system path for Menlo font
-menlo_prop = fm.FontProperties(fname=menlo_path)
-import matplotlib.pyplot as plt
-plt.rcParams['font.family'] = menlo_prop.get_name()
 
-warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn.linear_model")
+# Vérification des imports et configuration
+def setup_environment():
+    try:
+        import os
+        import sys
+        import pandas as pd
+        import numpy as np
+        import yfinance as yf
+        from statsmodels.tsa.stattools import coint
+        from ta.momentum import RSIIndicator, ROCIndicator
+        from ta.trend import ADXIndicator, SMAIndicator, EMAIndicator, MACD
+        from ta.volatility import BollingerBands, AverageTrueRange
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.pipeline import Pipeline
+        from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+        from sklearn.metrics import ConfusionMatrixDisplay
+        from imblearn.over_sampling import SMOTE
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.pdfgen import canvas
+        import matplotlib.font_manager as fm
+        import matplotlib.pyplot as plt
+        import warnings
+        
+        # Configuration des chemins
+        module_path = os.path.dirname(os.path.abspath(__file__))
+        sys.path.append(module_path)
+        
+        # Importer les fichiers locaux
+        from settings import tickers, correlation_matrix, commodity_mapping
+        from fx_strategy_V3 import get_interest_rate_difference, get_macro_data_fred, get_all_data, calculate_adx
+        
+        # Vérification des données de configuration
+        if not tickers or not correlation_matrix or not commodity_mapping:
+            raise ValueError("Les données de configuration sont incomplètes")
+        
+        # Configuration de la police Menlo
+        menlo_path = '/System/Library/Fonts/Menlo.ttc'
+        if os.path.exists(menlo_path):
+            menlo_prop = fm.FontProperties(fname=menlo_path)
+            plt.rcParams['font.family'] = menlo_prop.get_name()
+        else:
+            print("Attention : La police Menlo n'est pas disponible")
+            
+        # Configuration des avertissements
+        warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn.linear_model")
+        
+        return True
+        
+    except ImportError as e:
+        print(f"Erreur d'importation : {e}")
+        return False
+    except Exception as e:
+        print(f"Erreur de configuration : {e}")
+        return False
+
+# Lancer la configuration au démarrage
+if not setup_environment():
+    sys.exit(1)
+
 # --------------- PREPARE DATA SET FONCTION ----------------
 
 def prepare_dataset_signal(spread, zscore, pair1_close, gold_price, adx, macro_data=None, seuil=1):
-    if isinstance(pair1_close, pd.DataFrame):
-        pair1_close = pair1_close.iloc[:, 0]
-    if isinstance(gold_price, pd.DataFrame):
-        gold_price = gold_price.iloc[:, 0]
-        
-    #liste des indicateurs calculés dans "fx_strategy_V3;py"
-    pair1_close = pair1_close.reindex(spread.index)
-    gold_price = gold_price.reindex(spread.index)
-    zscore = zscore.reindex(spread.index)
-    adx = adx.reindex(spread.index)
+    # Vérification et correction des dimensions
+    def ensure_1d(series):
+        if isinstance(series, pd.DataFrame):
+            if series.shape[1] > 1:
+                print(f"Attention : DataFrame multi-colonnes détecté. Utilisation de la première colonne.")
+            return series.iloc[:, 0]
+        elif isinstance(series, pd.Series):
+            return series
+        elif isinstance(series, np.ndarray):
+            if series.ndim > 1:
+                print(f"Attention : Array multi-dimensionnel détecté. Utilisation de la première colonne.")
+            return pd.Series(series[:, 0]) if series.ndim > 1 else pd.Series(series)
+        return series
+
+    # Vérification des dimensions initiales
+    print(f"Dimensions initiales - spread: {spread.shape}, pair1_close: {pair1_close.shape}")
     
-    #liste des indicateurs techniques utilisés dans la regression logistique mutlinomiale
+    # Conversion des données en Series 1D
+    spread = ensure_1d(spread)
+    pair1_close = ensure_1d(pair1_close)
+    gold_price = ensure_1d(gold_price)
+    zscore = ensure_1d(zscore)
+    adx = ensure_1d(adx)
+    
+    # Vérification des dimensions après conversion
+    print(f"Dimensions après conversion - spread: {spread.shape}, pair1_close: {pair1_close.shape}")
+    
+    # Alignement des indices
+    print("\nAlignement des indices...")
+    print(f"Avant alignement - spread: {spread.shape}, pair1_close: {pair1_close.shape}")
+    
+    # Créer un DataFrame temporaire avec toutes les séries
+    temp_df = pd.DataFrame({
+        'spread': spread,
+        'pair1_close': pair1_close,
+        'gold_price': gold_price,
+        'zscore': zscore,
+        'adx': adx
+    })
+    
+    # Remplir les valeurs manquantes avec la dernière valeur disponible
+    temp_df = temp_df.fillna(method='ffill').fillna(method='bfill')
+    
+    # Extraire les séries alignées
+    spread = temp_df['spread']
+    pair1_close = temp_df['pair1_close']
+    gold_price = temp_df['gold_price']
+    zscore = temp_df['zscore']
+    adx = temp_df['adx']
+    
+    print(f"Après alignement - spread: {spread.shape}, pair1_close: {pair1_close.shape}")
+    
+    # Calcul des indicateurs techniques
+    print("\nCalcul des indicateurs techniques...")
+    
+    # Créer une fenêtre roulante pour gérer les valeurs manquantes lors des calculs
+    rolling_window = 20  # Taille de la fenêtre roulante
+    
+    # Calcul des indicateurs avec gestion des valeurs manquantes
     rsi_pair1 = RSIIndicator(close=pair1_close, window=14).rsi()
-    sma_20 = SMAIndicator(close=pair1_close, window=20).sma_indicator()
-    ema_20 = EMAIndicator(close=pair1_close, window=20).ema_indicator()
+    sma_20 = SMAIndicator(close=pair1_close, window=rolling_window).sma_indicator()
+    ema_20 = EMAIndicator(close=pair1_close, window=rolling_window).ema_indicator()
     macd = MACD(close=pair1_close).macd_diff()
-    bb_bands = BollingerBands(close=pair1_close, window=20)
+    
+    # Pour les Bollinger Bands, utiliser une fenêtre roulante avec remplissage des valeurs manquantes
+    bb_bands = BollingerBands(close=pair1_close.rolling(rolling_window).mean(), window=rolling_window)
     bb_bbh = bb_bands.bollinger_hband()
     bb_bbl = bb_bands.bollinger_lband()
-    roc = ROCIndicator(close=pair1_close, window=12).roc()
-    atr = AverageTrueRange(high=pair1_close, low=pair1_close, close=pair1_close).average_true_range()
-    #indicateur macro utilisé dans la regression multinomiale
+    
+    # Pour le ROC, utiliser une fenêtre roulante
+    roc = ROCIndicator(close=pair1_close, window=rolling_window).roc()
+    
+    # Pour l'ATR, créer des séries high/low fictives basées sur des variations typiques
+    high = pair1_close * (1 + pair1_close.pct_change().abs().rolling(rolling_window).mean())
+    low = pair1_close * (1 - pair1_close.pct_change().abs().rolling(rolling_window).mean())
+    atr = AverageTrueRange(high=high, low=low, close=pair1_close).average_true_range()
+    
+    # Vérification des dimensions des indicateurs
+    print(f"\nDimensions des indicateurs:")
+    print(f"rsi_pair1: {rsi_pair1.shape}")
+    print(f"sma_20: {sma_20.shape}")
+    print(f"ema_20: {ema_20.shape}")
+    print(f"macd: {macd.shape}")
+    print(f"bb_bbh: {bb_bbh.shape}")
+    print(f"bb_bbl: {bb_bbl.shape}")
+    print(f"roc: {roc.shape}")
+    print(f"atr: {atr.shape}")
+    
+    # Récupération de l'écart de taux d'intérêt avec alignement
     rate_diff = get_interest_rate_difference(pair1_close.name if hasattr(pair1_close, 'name') else "")
+    if isinstance(rate_diff, pd.Series):
+        rate_diff = rate_diff.reindex(spread.index).fillna(method='ffill').fillna(method='bfill')
+        print(f"\nrate_diff: {rate_diff.shape}")
+    else:
+        print("\nrate_diff: non Series, créant une série constante")
+        rate_diff = pd.Series(0, index=spread.index)
 
+    # Création du DataFrame avec toutes les features et gestion des valeurs manquantes
     df = pd.DataFrame({
         'spread': spread,
         'z_score': zscore,
-        'z_score_lag1': zscore.shift(1),
-        'vol_spread': spread.rolling(30).std(),
-        'rsi_pair1': rsi_pair1,
-        'adx': adx,
-        'sma_20': sma_20,
-        'ema_20': ema_20,
-        'macd': macd,
-        'bb_high': bb_bbh,
-        'bb_low': bb_bbl,
-        'roc': roc,
-        'atr': atr,
-        'rate_diff': get_interest_rate_difference(pair1_close.name if hasattr(pair1_close, 'name') else "")
+        'z_score_lag1': zscore.shift(1).fillna(method='bfill'),
+        'vol_spread': spread.rolling(30).std().fillna(method='bfill'),
+        'rsi_pair1': rsi_pair1.fillna(method='bfill'),
+        'adx': adx.fillna(method='bfill'),
+        'sma_20': sma_20.fillna(method='bfill'),
+        'ema_20': ema_20.fillna(method='bfill'),
+        'macd': macd.fillna(method='bfill'),
+        'bb_high': bb_bbh.fillna(method='bfill'),
+        'bb_low': bb_bbl.fillna(method='bfill'),
+        'roc': roc.fillna(method='bfill'),
+        'atr': atr.fillna(method='bfill'),
+        'rate_diff': rate_diff
     })
+    
+    # Vérification finale des dimensions
+    print("\nDimensions finales du DataFrame:")
+    print(df.shape)
 
+    # Ajout des données macro si disponibles
     if macro_data is not None:
-        # Merge macro data on index (dates), align on dates
         macro_data_reindexed = macro_data.reindex(df.index).ffill().bfill()
         df = pd.concat([df, macro_data_reindexed], axis=1)
 
-    df.dropna(inplace=True)
+    # Nettoyage des données
+    df = df.dropna()
     df = df.astype(float)
 
-    # Nouvelle étiquette : -1 → 0 (SELL), 0 → 1 (WAIT), 1 → 2 (BUY)
+    # Définition des targets
     df['target'] = 1  # WAIT par défaut
     df.loc[df['z_score'] > seuil, 'target'] = 0  # SELL
     df.loc[df['z_score'] < -seuil, 'target'] = 2  # BUY
@@ -161,21 +267,23 @@ def save_results_to_pdf(df_results, filename="ml_signals_report_V3.pdf"):
 
 def test_all_pairs_pdf_only(capital=900):
     results = []
-    tickers = settings.tickers
+    # tickers déjà importé depuis settings, pas besoin de re-récupérer
     macro_data = get_macro_data_fred()
 
     for i in range(len(tickers) - 1):
         pair1 = tickers[i]
         pair2 = tickers[i + 1]
         base_currency1 = pair1[:3]
-        commodity1 = settings.commodity_mapping.get(base_currency1, None)
+        commodity1 = commodity_mapping.get(base_currency1, None)
         commodity2 = None
 
         df1, df2, df_commo1, df_commo2 = get_all_data(pair1, pair2, commodity1, commodity2)
         if df1.empty or df2.empty:
             continue
 
-        spread, _, _, _ = engle_granger_test(df1[f"{pair1}_Close"], df2[f"{pair2}_Close"])
+        # Test de cointégration
+        coint_result = coint(df1[f"{pair1}_Close"], df2[f"{pair2}_Close"])
+        spread = df1[f"{pair1}_Close"] - df2[f"{pair2}_Close"]
         zscore = (spread - spread.mean()) / spread.std()
 
         pair1_close = df1[f"{pair1}_Close"]
@@ -188,7 +296,7 @@ def test_all_pairs_pdf_only(capital=900):
         if X.empty or y.empty or len(X) < 2:
             continue
 
-        smote = SMOTE(random_state=42)
+        smote = SMOTE(random_state=42, sampling_strategy='auto')
         X_resampled, y_resampled = smote.fit_resample(X, y)
 
         model = Pipeline([
@@ -275,4 +383,4 @@ def gestion_risque_adaptative(capital, ticker, fx_df_std=None, fx_df_vol=None, m
 if __name__ == "__main__":
     test_all_pairs_pdf_only()
 
-warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn.linear_model")
+warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn.linear_model")   

@@ -1,6 +1,6 @@
 
 # --------------- Tickers' lists ----------------
-fx_tickers = [
+tickers = [
     "EURUSD=X",  # Euro / US Dollar
     "USDJPY=X",  # US Dollar / Japanese Yen
     "GBPUSD=X",  # British Pound / US Dollar
